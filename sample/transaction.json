@@ -1,0 +1,362 @@
+{
+    "transactions": [
+        {
+            "id": 8116089782557,
+            "order_id": 6659620077853,
+            "kind": "authorization",
+            "gateway": "bogus",
+            "status": "failure",
+            "message": "Bogus Gateway: Use CreditCard number ending in 1 for success, 2 for exception and anything else for error",
+            "created_at": "2025-04-23T04:38:56-04:00",
+            "test": false,
+            "authorization": null,
+            "location_id": null,
+            "user_id": null,
+            "parent_id": null,
+            "processed_at": "2025-04-23T04:38:56-04:00",
+            "device_id": null,
+            "error_code": null,
+            "source_name": "checkout_one",
+            "payment_details": {
+                "credit_card_bin": "3",
+                "avs_result_code": null,
+                "cvv_result_code": null,
+                "credit_card_number": "•••• •••• •••• 3",
+                "credit_card_company": "Bogus",
+                "buyer_action_info": null,
+                "credit_card_name": "Test Tech",
+                "credit_card_wallet": null,
+                "credit_card_expiration_month": 12,
+                "credit_card_expiration_year": 2031,
+                "payment_method_name": "bogus"
+            },
+            "receipt": {
+                "message": "Bogus Gateway: Use CreditCard number ending in 1 for success, 2 for exception and anything else for error"
+            },
+            "amount": "80.00",
+            "currency": "USD",
+            "payment_id": "rBPmaHkCjdXNcwP1ymqDbkPAq",
+            "total_unsettled_set": {
+                "presentment_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                },
+                "shop_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                }
+            },
+            "manual_payment_gateway": false,
+            "amount_rounding": null,
+            "admin_graphql_api_id": "gid://shopify/OrderTransaction/8116089782557"
+        },
+        {
+            "id": 8116090077469,
+            "order_id": 6659620077853,
+            "kind": "authorization",
+            "gateway": "bogus",
+            "status": "failure",
+            "message": "Bogus Gateway: Forced failure",
+            "created_at": "2025-04-23T04:39:07-04:00",
+            "test": true,
+            "authorization": null,
+            "location_id": null,
+            "user_id": null,
+            "parent_id": null,
+            "processed_at": "2025-04-23T04:39:07-04:00",
+            "device_id": null,
+            "error_code": "processing_error",
+            "source_name": "checkout_one",
+            "payment_details": {
+                "credit_card_bin": "2",
+                "avs_result_code": null,
+                "cvv_result_code": null,
+                "credit_card_number": "•••• •••• •••• 2",
+                "credit_card_company": "Bogus",
+                "buyer_action_info": null,
+                "credit_card_name": "Test Tech",
+                "credit_card_wallet": null,
+                "credit_card_expiration_month": 12,
+                "credit_card_expiration_year": 2031,
+                "payment_method_name": "bogus"
+            },
+            "receipt": {
+                "authorized_amount": "80.00",
+                "error": "Bogus Gateway: Forced failure",
+                "error_code": "processing_error"
+            },
+            "amount": "80.00",
+            "currency": "USD",
+            "payment_id": "rUFm6Qyk0qu240ggjGUZ9tFuC",
+            "total_unsettled_set": {
+                "presentment_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                },
+                "shop_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                }
+            },
+            "manual_payment_gateway": false,
+            "amount_rounding": null,
+            "admin_graphql_api_id": "gid://shopify/OrderTransaction/8116090077469"
+        },
+        {
+            "id": 8116090339613,
+            "order_id": 6659620077853,
+            "kind": "authorization",
+            "gateway": "bogus",
+            "status": "failure",
+            "message": "Bogus Gateway: Forced failure",
+            "created_at": "2025-04-23T04:39:22-04:00",
+            "test": true,
+            "authorization": null,
+            "location_id": null,
+            "user_id": null,
+            "parent_id": null,
+            "processed_at": "2025-04-23T04:39:22-04:00",
+            "device_id": null,
+            "error_code": "processing_error",
+            "source_name": "checkout_one",
+            "payment_details": {
+                "credit_card_bin": "2",
+                "avs_result_code": null,
+                "cvv_result_code": null,
+                "credit_card_number": "•••• •••• •••• 2",
+                "credit_card_company": "Bogus",
+                "buyer_action_info": null,
+                "credit_card_name": "Test Tech",
+                "credit_card_wallet": null,
+                "credit_card_expiration_month": 12,
+                "credit_card_expiration_year": 2031,
+                "payment_method_name": "bogus"
+            },
+            "receipt": {
+                "authorized_amount": "80.00",
+                "error": "Bogus Gateway: Forced failure",
+                "error_code": "processing_error"
+            },
+            "amount": "80.00",
+            "currency": "USD",
+            "payment_id": "rqQVraWheVS5TdnYb4GKrbn07",
+            "total_unsettled_set": {
+                "presentment_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                },
+                "shop_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                }
+            },
+            "manual_payment_gateway": false,
+            "amount_rounding": null,
+            "admin_graphql_api_id": "gid://shopify/OrderTransaction/8116090339613"
+        },
+        {
+            "id": 8116090405149,
+            "order_id": 6659620077853,
+            "kind": "authorization",
+            "gateway": "bogus",
+            "status": "failure",
+            "message": "Bogus Gateway: Forced failure",
+            "created_at": "2025-04-23T04:39:33-04:00",
+            "test": true,
+            "authorization": null,
+            "location_id": null,
+            "user_id": null,
+            "parent_id": null,
+            "processed_at": "2025-04-23T04:39:33-04:00",
+            "device_id": null,
+            "error_code": "processing_error",
+            "source_name": "checkout_one",
+            "payment_details": {
+                "credit_card_bin": "2",
+                "avs_result_code": null,
+                "cvv_result_code": null,
+                "credit_card_number": "•••• •••• •••• 2",
+                "credit_card_company": "Bogus",
+                "buyer_action_info": null,
+                "credit_card_name": "Test Tech",
+                "credit_card_wallet": null,
+                "credit_card_expiration_month": 12,
+                "credit_card_expiration_year": 2031,
+                "payment_method_name": "bogus"
+            },
+            "receipt": {
+                "authorized_amount": "80.00",
+                "error": "Bogus Gateway: Forced failure",
+                "error_code": "processing_error"
+            },
+            "amount": "80.00",
+            "currency": "USD",
+            "payment_id": "rQdG40O4zSgu15mqeLPBKCrCD",
+            "total_unsettled_set": {
+                "presentment_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                },
+                "shop_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                }
+            },
+            "manual_payment_gateway": false,
+            "amount_rounding": null,
+            "admin_graphql_api_id": "gid://shopify/OrderTransaction/8116090405149"
+        },
+        {
+            "id": 8116090536221,
+            "order_id": 6659620077853,
+            "kind": "authorization",
+            "gateway": "bogus",
+            "status": "failure",
+            "message": "Bogus Gateway: Forced failure",
+            "created_at": "2025-04-23T04:39:44-04:00",
+            "test": true,
+            "authorization": null,
+            "location_id": null,
+            "user_id": null,
+            "parent_id": null,
+            "processed_at": "2025-04-23T04:39:44-04:00",
+            "device_id": null,
+            "error_code": "processing_error",
+            "source_name": "checkout_one",
+            "payment_details": {
+                "credit_card_bin": "2",
+                "avs_result_code": null,
+                "cvv_result_code": null,
+                "credit_card_number": "•••• •••• •••• 2",
+                "credit_card_company": "Bogus",
+                "buyer_action_info": null,
+                "credit_card_name": "Test Tech",
+                "credit_card_wallet": null,
+                "credit_card_expiration_month": 12,
+                "credit_card_expiration_year": 2031,
+                "payment_method_name": "bogus"
+            },
+            "receipt": {
+                "authorized_amount": "80.00",
+                "error": "Bogus Gateway: Forced failure",
+                "error_code": "processing_error"
+            },
+            "amount": "80.00",
+            "currency": "USD",
+            "payment_id": "rRrjF32BxCpkjmF9UIC08r60X",
+            "total_unsettled_set": {
+                "presentment_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                },
+                "shop_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                }
+            },
+            "manual_payment_gateway": false,
+            "amount_rounding": null,
+            "admin_graphql_api_id": "gid://shopify/OrderTransaction/8116090536221"
+        },
+        {
+            "id": 8116090896669,
+            "order_id": 6659620077853,
+            "kind": "authorization",
+            "gateway": "bogus",
+            "status": "success",
+            "message": "Bogus Gateway: Forced success",
+            "created_at": "2025-04-23T04:40:06-04:00",
+            "test": true,
+            "authorization": "53433",
+            "location_id": null,
+            "user_id": null,
+            "parent_id": null,
+            "processed_at": "2025-04-23T04:40:06-04:00",
+            "device_id": null,
+            "error_code": null,
+            "source_name": "checkout_one",
+            "payment_details": {
+                "credit_card_bin": "1",
+                "avs_result_code": null,
+                "cvv_result_code": null,
+                "credit_card_number": "•••• •••• •••• 1",
+                "credit_card_company": "Bogus",
+                "buyer_action_info": null,
+                "credit_card_name": "Test Tech",
+                "credit_card_wallet": null,
+                "credit_card_expiration_month": 12,
+                "credit_card_expiration_year": 2031,
+                "payment_method_name": "bogus"
+            },
+            "receipt": {
+                "authorized_amount": "80.00"
+            },
+            "amount": "80.00",
+            "currency": "USD",
+            "payment_id": "rClr3soMKVGTefJTAbXXJkdon",
+            "total_unsettled_set": {
+                "presentment_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                },
+                "shop_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                }
+            },
+            "manual_payment_gateway": false,
+            "amount_rounding": null,
+            "admin_graphql_api_id": "gid://shopify/OrderTransaction/8116090896669"
+        },
+        {
+            "id": 8118152200477,
+            "order_id": 6659620077853,
+            "kind": "capture",
+            "gateway": "bogus",
+            "status": "success",
+            "message": "Bogus Gateway: Forced success",
+            "created_at": "2025-04-24T01:07:33-04:00",
+            "test": true,
+            "authorization": null,
+            "location_id": null,
+            "user_id": null,
+            "parent_id": 8116090896669,
+            "processed_at": "2025-04-24T01:07:33-04:00",
+            "device_id": null,
+            "error_code": null,
+            "source_name": "241241227265",
+            "payment_details": {
+                "credit_card_bin": "1",
+                "avs_result_code": null,
+                "cvv_result_code": null,
+                "credit_card_number": "•••• •••• •••• 1",
+                "credit_card_company": "Bogus",
+                "buyer_action_info": null,
+                "credit_card_name": "Test Tech",
+                "credit_card_wallet": null,
+                "credit_card_expiration_month": 12,
+                "credit_card_expiration_year": 2031,
+                "payment_method_name": "bogus"
+            },
+            "receipt": {
+                "paid_amount": "80.00"
+            },
+            "amount": "80.00",
+            "currency": "USD",
+            "payment_id": "#1038.2",
+            "total_unsettled_set": {
+                "presentment_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                },
+                "shop_money": {
+                    "amount": "0.0",
+                    "currency": "USD"
+                }
+            },
+            "manual_payment_gateway": false,
+            "amount_rounding": null,
+            "admin_graphql_api_id": "gid://shopify/OrderTransaction/8118152200477"
+        }
+    ]
+}

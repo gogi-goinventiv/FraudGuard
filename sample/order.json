@@ -1,0 +1,372 @@
+{
+    "order": {
+        "id": 6659620077853,
+        "admin_graphql_api_id": "gid://shopify/Order/6659620077853",
+        "app_id": 580111,
+        "browser_ip": "2401:4900:1c08:72ef:889a:9781:17ad:c91c",
+        "buyer_accepts_marketing": false,
+        "cancel_reason": null,
+        "cancelled_at": null,
+        "cart_token": "Z2NwLXVzLWNlbnRyYWwxOjAxSlNHV1JZMjBUMEM0MEJBVkNUMEJWSzRZ",
+        "checkout_id": 44443336409373,
+        "checkout_token": "c6c913150b86ea591dafeea6d7cf1227",
+        "client_details": {
+            "accept_language": "en-US",
+            "browser_height": null,
+            "browser_ip": "2401:4900:1c08:72ef:889a:9781:17ad:c91c",
+            "browser_width": null,
+            "session_hash": null,
+            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+        },
+        "closed_at": null,
+        "company": null,
+        "confirmation_number": "YL5T7FEK0",
+        "confirmed": true,
+        "contact_email": "test@gmail.com",
+        "created_at": "2025-04-23T04:40:07-04:00",
+        "currency": "USD",
+        "current_subtotal_price": "80.00",
+        "current_subtotal_price_set": {
+            "shop_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            }
+        },
+        "current_total_additional_fees_set": null,
+        "current_total_discounts": "0.00",
+        "current_total_discounts_set": {
+            "shop_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            }
+        },
+        "current_total_duties_set": null,
+        "current_total_price": "80.00",
+        "current_total_price_set": {
+            "shop_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            }
+        },
+        "current_total_tax": "0.00",
+        "current_total_tax_set": {
+            "shop_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            }
+        },
+        "customer_locale": "en-US",
+        "device_id": null,
+        "discount_codes": [],
+        "duties_included": false,
+        "email": "test@gmail.com",
+        "estimated_taxes": false,
+        "financial_status": "paid",
+        "fulfillment_status": null,
+        "landing_site": "/password",
+        "landing_site_ref": null,
+        "location_id": null,
+        "merchant_business_entity_id": "MTkzNTA1MDYxMTQ5",
+        "merchant_of_record_app_id": null,
+        "name": "#1038",
+        "note": null,
+        "note_attributes": [],
+        "number": 38,
+        "order_number": 1038,
+        "order_status_url": "https://fraudguard-dev.myshopify.com/93505061149/orders/6fd2dfda5fc0a079b45182fc408d0304/authenticate?key=45e65e20249c58f8aa9119f2b2dc71e2",
+        "original_total_additional_fees_set": null,
+        "original_total_duties_set": null,
+        "payment_gateway_names": [
+            "bogus"
+        ],
+        "phone": null,
+        "po_number": null,
+        "presentment_currency": "USD",
+        "processed_at": "2025-04-23T04:40:06-04:00",
+        "reference": null,
+        "referring_site": "",
+        "source_identifier": null,
+        "source_name": "web",
+        "source_url": null,
+        "subtotal_price": "80.00",
+        "subtotal_price_set": {
+            "shop_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            }
+        },
+        "tags": "",
+        "tax_exempt": false,
+        "tax_lines": [],
+        "taxes_included": false,
+        "test": true,
+        "token": "6fd2dfda5fc0a079b45182fc408d0304",
+        "total_cash_rounding_payment_adjustment_set": {
+            "shop_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            }
+        },
+        "total_cash_rounding_refund_adjustment_set": {
+            "shop_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            }
+        },
+        "total_discounts": "0.00",
+        "total_discounts_set": {
+            "shop_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            }
+        },
+        "total_line_items_price": "80.00",
+        "total_line_items_price_set": {
+            "shop_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            }
+        },
+        "total_outstanding": "0.00",
+        "total_price": "80.00",
+        "total_price_set": {
+            "shop_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "80.00",
+                "currency_code": "USD"
+            }
+        },
+        "total_shipping_price_set": {
+            "shop_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            }
+        },
+        "total_tax": "0.00",
+        "total_tax_set": {
+            "shop_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            },
+            "presentment_money": {
+                "amount": "0.00",
+                "currency_code": "USD"
+            }
+        },
+        "total_tip_received": "0.00",
+        "total_weight": 0,
+        "updated_at": "2025-04-24T01:07:33-04:00",
+        "user_id": null,
+        "billing_address": {
+            "first_name": "Test",
+            "address1": "148 Cape Cod Drive",
+            "phone": null,
+            "city": "The Colony",
+            "zip": "75056",
+            "province": "Texas",
+            "country": "United States",
+            "last_name": "Tech",
+            "address2": null,
+            "company": null,
+            "latitude": null,
+            "longitude": null,
+            "name": "Test Tech",
+            "country_code": "US",
+            "province_code": "TX"
+        },
+        "customer": {
+            "id": 8880570302749,
+            "email": "test@gmail.com",
+            "created_at": "2025-04-23T04:38:56-04:00",
+            "updated_at": "2025-04-24T01:07:36-04:00",
+            "first_name": "Test",
+            "last_name": "Tech",
+            "state": "disabled",
+            "note": null,
+            "verified_email": true,
+            "multipass_identifier": null,
+            "tax_exempt": false,
+            "phone": null,
+            "email_marketing_consent": {
+                "state": "not_subscribed",
+                "opt_in_level": "single_opt_in",
+                "consent_updated_at": null
+            },
+            "sms_marketing_consent": null,
+            "tags": "",
+            "currency": "USD",
+            "tax_exemptions": [],
+            "admin_graphql_api_id": "gid://shopify/Customer/8880570302749",
+            "default_address": {
+                "id": 11398635094301,
+                "customer_id": 8880570302749,
+                "first_name": "Test",
+                "last_name": "Tech",
+                "company": null,
+                "address1": "148 Cape Cod Drive",
+                "address2": null,
+                "city": "The Colony",
+                "province": "Texas",
+                "country": "United States",
+                "zip": "75056",
+                "phone": null,
+                "name": "Test Tech",
+                "province_code": "TX",
+                "country_code": "US",
+                "country_name": "United States",
+                "default": true
+            }
+        },
+        "discount_applications": [],
+        "fulfillments": [],
+        "line_items": [
+            {
+                "id": 16756507410717,
+                "admin_graphql_api_id": "gid://shopify/LineItem/16756507410717",
+                "attributed_staffs": [],
+                "current_quantity": 1,
+                "fulfillable_quantity": 1,
+                "fulfillment_service": "manual",
+                "fulfillment_status": null,
+                "gift_card": false,
+                "grams": 0,
+                "name": "Test Product",
+                "price": "80.00",
+                "price_set": {
+                    "shop_money": {
+                        "amount": "80.00",
+                        "currency_code": "USD"
+                    },
+                    "presentment_money": {
+                        "amount": "80.00",
+                        "currency_code": "USD"
+                    }
+                },
+                "product_exists": true,
+                "product_id": 9817525256477,
+                "properties": [],
+                "quantity": 1,
+                "requires_shipping": true,
+                "sku": "",
+                "taxable": false,
+                "title": "Test Product",
+                "total_discount": "0.00",
+                "total_discount_set": {
+                    "shop_money": {
+                        "amount": "0.00",
+                        "currency_code": "USD"
+                    },
+                    "presentment_money": {
+                        "amount": "0.00",
+                        "currency_code": "USD"
+                    }
+                },
+                "variant_id": 49885317366045,
+                "variant_inventory_management": "shopify",
+                "variant_title": null,
+                "vendor": "fraudguard-dev",
+                "tax_lines": [],
+                "duties": [],
+                "discount_allocations": []
+            }
+        ],
+        "payment_terms": null,
+        "refunds": [],
+        "shipping_address": {
+            "first_name": "Test",
+            "address1": "148 Cape Cod Drive",
+            "phone": null,
+            "city": "The Colony",
+            "zip": "75056",
+            "province": "Texas",
+            "country": "United States",
+            "last_name": "Tech",
+            "address2": null,
+            "company": null,
+            "latitude": 33.0752995,
+            "longitude": -96.8956049,
+            "name": "Test Tech",
+            "country_code": "US",
+            "province_code": "TX"
+        },
+        "shipping_lines": [
+            {
+                "id": 5554945753373,
+                "carrier_identifier": null,
+                "code": "Economy",
+                "discounted_price": "0.00",
+                "discounted_price_set": {
+                    "shop_money": {
+                        "amount": "0.00",
+                        "currency_code": "USD"
+                    },
+                    "presentment_money": {
+                        "amount": "0.00",
+                        "currency_code": "USD"
+                    }
+                },
+                "is_removed": false,
+                "phone": null,
+                "price": "0.00",
+                "price_set": {
+                    "shop_money": {
+                        "amount": "0.00",
+                        "currency_code": "USD"
+                    },
+                    "presentment_money": {
+                        "amount": "0.00",
+                        "currency_code": "USD"
+                    }
+                },
+                "requested_fulfillment_service_id": null,
+                "source": "shopify",
+                "title": "Economy",
+                "tax_lines": [],
+                "discount_allocations": []
+            }
+        ]
+    }
+}

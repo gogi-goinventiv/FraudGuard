@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# next.js build output
+.next/
+out/
+
+# typescript build info
+*.tsbuildinfo
+
+# tailwind css JIT cache (optional)
+.tailwindcache/
+
+# environment variables
+.env.local
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# misc
+.DS_Store
