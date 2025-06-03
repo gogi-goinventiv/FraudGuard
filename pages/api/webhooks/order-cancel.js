@@ -197,7 +197,7 @@ export async function processQueuedCancelWebhook(db, queueItem) {
     }
 
     await incrementRiskPreventedAmount(shop, parseFloat(orderCancelData.total_price));
-    await updateOrdersOnHold(shop, true);
+    await updateOrdersOnHold(shop, true, {location: "webhooks/ order-cancel"});
 
     // Mark webhook as completed
     await db.collection('webhook-queue').updateOne(
