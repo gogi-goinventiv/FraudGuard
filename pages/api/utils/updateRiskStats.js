@@ -11,7 +11,15 @@ export async function incrementRiskPreventedAmount(shop, amount) {
   );
 }
 
-export async function updateOrdersOnHold(shop, decrement = false) {
+/**
+ * Updates the orders on hold count in the risk-stats collection.
+ * Prevents negative values and logs any invalid decrement attempts.
+ * 
+ * @param {string} shop - The shop domain (e.g., example.myshopify.com)
+ * @param {boolean} decrement - Whether to decrement (default is false)
+ * @param {object} meta - Optional metadata about what triggered the update
+ */
+export async function updateOrdersOnHold(shop, decrement = false, meta = {}) {
   const client = await clientPromise;
   const db = client.db(shop.split(".")[0]);
   const collection = db.collection("risk-stats");
@@ -21,14 +29,15 @@ export async function updateOrdersOnHold(shop, decrement = false) {
   const incValue = decrement ? -1 : 1;
 
   if (decrement && currentCount <= 0) {
-    // Prevent decrementing below 0 and log the event
+    // Log the invalid decrement attempt
     await db.collection("risk-logs").insertOne({
       id: "risk-orders-negative-attempt",
       shop,
       timestamp: new Date(),
       currentCount,
       attemptedDecrement: true,
-      message: "Attempted to decrement orders on hold below zero",
+      reason: "Attempted to decrement 'orders on hold' count below zero.",
+      meta,
     });
     return;
   }
