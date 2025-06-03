@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     // POST to /api/process-queue for each shop
     const results = await Promise.allSettled(
       shopDbs.map(shop =>
-        fetch(`${process.env.BASE_URL}/api/process-queue`, {
+        fetch(`${process.env.HOST}/api/process-queue`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shop }),
