@@ -129,7 +129,7 @@ export default async function handler(req, res) {
     }
 
     await incrementRiskPreventedAmount(shop, parseFloat(orderAmount));
-    await updateOrdersOnHold(shop, true);
+    await updateOrdersOnHold(shop, true, {location: "/cancel"});
 
     res.status(200).json({
       success: true,
