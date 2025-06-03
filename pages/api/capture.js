@@ -85,7 +85,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ message: 'Failed to update order inside database.' });
     }
 
-    await updateOrdersOnHold(shop, true);
+    await updateOrdersOnHold(shop, true, {location: "/capture"});
 
     res.status(200).json({ success: true, transaction: captureData.transaction });
   } catch (err) {
