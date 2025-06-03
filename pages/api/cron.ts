@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       )
     );
 
-    console.log(shopDbs.length, results);
+    console.log(shopDbs);
 
     res.status(200).json({
       success: true,
