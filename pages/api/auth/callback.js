@@ -46,8 +46,9 @@ export default async function handler(req, res) {
 
     await sessionHandler.storeSession(session);
     // Redirect to the app
+    console.log(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
     // Make sure it's a complete URL
-    res.redirect(`https://${shop}/admin/apps`);
+    res.redirect(`https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
 
   } catch (e) {
     console.error("Error during auth callback", e);
