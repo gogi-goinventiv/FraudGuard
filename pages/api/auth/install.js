@@ -10,7 +10,7 @@ export default async function handler(req, res) {
             const session = await sessionHandler.loadSession(shop);
 
             if (session) {
-                return res.redirect(302, `/?shop=${shop}`);
+                return res.redirect(302, `/dashboard?shop=${shop}`);
             }
             res.redirect(302, `/api/auth?shop=${shop}`);
         } catch (error) {
