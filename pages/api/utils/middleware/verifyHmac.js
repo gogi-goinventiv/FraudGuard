@@ -21,7 +21,7 @@ const verifyHmac = async (req, res, next) => {
 
     // Generate HMAC hash using raw body string
     const generateHash = crypto
-      .createHmac("sha256", process.env.SHOPIFY_WEBHOOK_SECRET)
+      .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
       .update(rawBodyString, "utf8")
       .digest("base64");
 
