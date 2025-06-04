@@ -1,23 +1,21 @@
-// pages/api/auth/install.js
-import sessionHandler from '../utils/sessionHandler';
+// pages/api/auth/index.js
+import { shopify } from '../../../lib/shopify';
 
 export default async function handler(req, res) {
-    const { shop } = req.query;
-
-    if (req.method === 'GET') {
-
-        try {
-            const session = await sessionHandler.loadSession(shop);
-
-            if (session) {
-                return res.redirect(`/?shop=${shop}`);
-            }
-            res.redirect(302, `/api/auth?shop=${shop}`);
-        } catch (error) {
-            console.error('Auth begin error:', error);
-            res.status(500).send('Internal Server Error');
-        }
-        return;
+  if (req.method === 'GET') {
+    try {
+      await shopify.auth.begin({
+        shop: req.query.shop,
+        callbackPath: '/api/auth/callback',
+        isOnline: false,
+        rawRequest: req,
+        rawResponse: res,
+      });
+    } catch (error) {
+      console.error('Auth begin error:', error);
+      res.status(500).send('Internal Server Error');
     }
-    res.status(405).send('Method Not Allowed');
+    return;
+  }
+  res.status(405).send('Method Not Allowed');
 }
