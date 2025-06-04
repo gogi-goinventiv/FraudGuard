@@ -14,14 +14,14 @@ export default function Home() {
   const MIN_LOADING_TIME = 1000;
 
   useEffect(() => {
-    if (!shop || !host) return;
+    if (!shop) return;
 
     // Ensure we are running inside the Shopify Admin iframe
     if (window.top === window.self) {
       // Not embedded – redirect to embedded version
       const app = createApp({
         apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
-        host: host as string,
+        host: host as string || 'YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvdXZzemgxLW01',
         forceRedirect: true,
       });
 
