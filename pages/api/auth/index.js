@@ -3,15 +3,19 @@ import { shopify } from '../../../lib/shopify';
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
-    const redirectUrl = await shopify.auth.begin({
-      shop: req.query.shop,
-      callbackPath: '/api/auth/callback',
-      isOnline: false,
-      rawRequest: req,
-      rawResponse: res,
-    });
-    return res.redirect(redirectUrl);
+    try {
+      await shopify.auth.begin({
+        shop: req.query.shop,
+        callbackPath: '/api/auth/callback',
+        isOnline: false,
+        rawRequest: req,
+        rawResponse: res,
+      });
+    } catch (error) {
+      console.error('Auth begin error:', error);
+      res.status(500).send('Internal Server Error');
+    }
+    return;
   }
-
   res.status(405).send('Method Not Allowed');
 }
