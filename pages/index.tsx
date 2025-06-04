@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import DashboardPage from './dashboard';
 import SkeletonLoader from '../ui/components/SkeletonLoader';
-import createApp from '@shopify/app-bridge';
+import { createApp } from '@shopify/app-bridge';
 import { Redirect } from '@shopify/app-bridge/actions';
 
 export default function Home() {
@@ -16,8 +16,9 @@ export default function Home() {
   useEffect(() => {
     if (!shop || !host) return;
 
-    // Redirect to embedded app iframe if not already inside it
+    // Ensure we are running inside the Shopify Admin iframe
     if (window.top === window.self) {
+      // Not embedded – redirect to embedded version
       const app = createApp({
         apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
         host: host as string,
@@ -25,7 +26,7 @@ export default function Home() {
       });
 
       const redirect = Redirect.create(app);
-      redirect.dispatch(Redirect.Action.ADMIN_PATH, `/dashboard?shop=${shop}`);
+      redirect.dispatch(Redirect.Action.ADMIN_PATH, `/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`); 
       return;
     }
 
@@ -64,6 +65,5 @@ export default function Home() {
   }, [shop, host]);
 
   if (isLoading) return <SkeletonLoader />;
-
   return <DashboardPage onboardingRequired={onboardingRequired} />;
 }
