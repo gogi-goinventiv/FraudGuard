@@ -16,20 +16,6 @@ export default function Home() {
   useEffect(() => {
     if (!shop) return;
 
-    // Ensure we are running inside the Shopify Admin iframe
-    if (window.top === window.self) {
-      // Not embedded – redirect to embedded version
-      const app = createApp({
-        apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
-        host: host as string || 'YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvdXZzemgxLW01',
-        forceRedirect: true,
-      });
-
-      const redirect = Redirect.create(app);
-      redirect.dispatch(Redirect.Action.ADMIN_PATH, `/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`); 
-      return;
-    }
-
     let startTime = Date.now();
 
     const checkOnboardingStatus = async () => {
