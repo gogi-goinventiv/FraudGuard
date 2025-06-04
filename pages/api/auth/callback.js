@@ -47,6 +47,7 @@ export default async function handler(req, res) {
     await sessionHandler.storeSession(session);
     // Redirect to the app
     console.log(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
+    const host = req.query.host;
     // Make sure it's a complete URL
     res.redirect(`/?shop=${shop}&host=${host}`);
 
