@@ -35,6 +35,25 @@ export default async function handler(req, res) {
           callbackUrl: `${process.env.HOST}/api/webhooks/order-cancel`,
         },
       ],
+      // mandatory compliance webhooks 
+      CUSTOMERS_DATA_REQUEST: [
+        {
+          deliveryMethod: DeliveryMethod.Http,
+          callbackUrl: `${process.env.HOST}/api/webhooks/customers-data-request`,
+        },
+      ],
+      CUSTOMERS_REDACT: [
+        {
+          deliveryMethod: DeliveryMethod.Http,
+          callbackUrl: `${process.env.HOST}/api/webhooks/customers-redact`,
+        },
+      ],
+      SHOP_REDACT: [
+        {
+          deliveryMethod: DeliveryMethod.Http,
+          callbackUrl: `${process.env.HOST}/api/webhooks/shop-redact`,
+        },
+      ]
     });
     
     // Register the webhooks with Shopify
