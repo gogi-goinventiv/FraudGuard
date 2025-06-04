@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     // Redirect to the app
     console.log(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
     // Make sure it's a complete URL
-    res.redirect(`https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
+    res.redirect(`/?shop=${shop}&host=${host}`);
 
   } catch (e) {
     console.error("Error during auth callback", e);
