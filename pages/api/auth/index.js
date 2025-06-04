@@ -2,6 +2,7 @@
 import { shopify } from '../../../lib/shopify';
 
 export default async function handler(req, res) {
+  console.log('Host:', req.query.host);
   if (req.method === 'GET') {
     try {
       await shopify.auth.begin({
