@@ -163,6 +163,11 @@ export async function processQueuedCancelWebhook(db, queueItem) {
       { projection: { 'guard.status': 1 } }
     );
 
+    if (!existingOrder) {
+      console.log(`Order ${orderCancelData.id} does not exist in our database, skipping.`);
+      return;
+    }
+
     const previousStatus = existingOrder?.guard?.status || 'unknown';
 
     if (previousStatus === 'cancelled payment') {
