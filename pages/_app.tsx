@@ -2,7 +2,7 @@ import type { AppProps } from 'next/app';
 import '../styles/globals.css';
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { Provider } from '@shopify/app-bridge-react';
+import { AppProvider } from '@shopify/app-bridge-react';
 import { ManualCaptureWarningContext } from '../context/manualCaptureWarning';
 
 export default function App({ Component, pageProps }: AppProps) {
