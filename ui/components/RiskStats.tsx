@@ -17,7 +17,7 @@ export default function RiskStats({ riskStats }: { riskStats: RiskStatsProps }) 
             title="This amount is calculated based solely on cancelled orders."
           />
         </div>
-        <p className="text-2xl font-semibold text-gray-800">{`$ ${riskStats.riskPrevented.toFixed(2)}`}</p>
+        <p className="text-2xl font-semibold text-gray-800">{`$ ${riskStats.riskPrevented.toFixed(1)}`}</p>
       </div>
 
       <div className="flex flex-col h-24 justify-evenly bg-white px-4 py-3 w-3/5 rounded shadow">
