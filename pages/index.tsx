@@ -4,17 +4,20 @@ import DashboardPage from './dashboard';
 import SkeletonLoader from '../ui/components/SkeletonLoader';
 import { createApp } from '@shopify/app-bridge';
 import { Redirect } from '@shopify/app-bridge/actions';
+import { useAppBridge } from '@shopify/app-bridge-react';
+import { getSessionToken } from '@shopify/app-bridge/utilities';
 
 export default function Home() {
   const router = useRouter();
   const { shop, host } = router.query;
+  const app = useAppBridge();
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingRequired, setOnboardingRequired] = useState(false);
 
   const MIN_LOADING_TIME = 1000;
 
   useEffect(() => {
-    if (!shop) return;
+    if (!shop || !app) return;
 
     // Ensure we are running inside the Shopify Admin iframe
     if (window.top === window.self) {
@@ -34,13 +37,23 @@ export default function Home() {
 
     const checkOnboardingStatus = async () => {
       try {
+    
+        const sessionToken = await getSessionToken(app);
+        
         await fetch(`/api/process-queue`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+           headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
           body: JSON.stringify({ shop }),
         });
 
-        const response = await fetch(`/api/shop/onboarding?shop=${shop}`);
+        const response = await fetch(`/api/shop/onboarding?shop=${shop}`, {
+          headers: {
+            'Authorization': `Bearer ${sessionToken}`
+          }
+        });
         const data = await response.json();
 
         const elapsedTime = Date.now() - startTime;
@@ -62,7 +75,7 @@ export default function Home() {
     };
 
     checkOnboardingStatus();
-  }, [shop, host]);
+  }, [shop, host, app]);
 
   if (isLoading) return <SkeletonLoader />;
   return <DashboardPage onboardingRequired={onboardingRequired} />;
