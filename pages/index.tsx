@@ -15,7 +15,7 @@ export default function Home() {
   const MIN_LOADING_TIME = 1000;
 
   useEffect(() => {
-    if (!shop || !app) return;
+    if (!shop) return;
 
     // Ensure we are running inside the Shopify Admin iframe
     if (window.top === window.self) {
@@ -73,7 +73,7 @@ export default function Home() {
     };
 
     checkOnboardingStatus();
-  }, [shop, host, app]);
+  }, [shop, host]);
 
   if (isLoading) return <SkeletonLoader />;
   return <DashboardPage onboardingRequired={onboardingRequired} />;
