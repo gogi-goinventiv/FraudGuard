@@ -4,13 +4,11 @@ import DashboardPage from './dashboard';
 import SkeletonLoader from '../ui/components/SkeletonLoader';
 import { createApp } from '@shopify/app-bridge';
 import { Redirect } from '@shopify/app-bridge/actions';
-import { useAppBridge } from '@shopify/app-bridge-react';
 import { getSessionToken } from '@shopify/app-bridge/utilities';
 
 export default function Home() {
   const router = useRouter();
   const { shop, host } = router.query;
-  const app = useAppBridge();
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingRequired, setOnboardingRequired] = useState(false);
 
