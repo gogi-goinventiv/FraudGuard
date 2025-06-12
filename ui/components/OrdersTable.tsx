@@ -215,6 +215,62 @@ export default function OrdersTable({
                         order?.guard?.remark.slice(1)} & ${order?.guard?.status}` : order?.guard?.status.charAt(0).toUpperCase() +
                       order?.guard?.status.slice(1)}
                     </div>
+
+                    <div className="mt-2 text-xs text-gray-600">
+                      {order?.guard?.email?.lastSentAt ? (
+                        (() => {
+                          // Handle different date formats
+                          let timeAgo;
+                          if (typeof order.guard.email.lastSentAt === 'number') {
+                            // If it's already calculated as days
+                            const days = order.guard.email.lastSentAt;
+                            timeAgo = days === 0
+                              ? "Email sent today"
+                              : days === 1
+                                ? "Email sent 1 day ago"
+                                : `Email sent ${days} days ago`;
+                          } else {
+                            // If it's a date string, calculate time ago
+                            const lastSentDate = new Date(order.guard.email.lastSentAt);
+                            const now = new Date();
+                            const diffTime = Math.abs(now.getTime() - lastSentDate.getTime());
+
+                            const seconds = Math.floor(diffTime / 1000);
+                            const minutes = Math.floor(diffTime / (1000 * 60));
+                            const hours = Math.floor(diffTime / (1000 * 60 * 60));
+                            const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                            if (seconds < 60) {
+                              timeAgo = seconds === 1
+                                ? "Email sent 1 second ago"
+                                : `Email sent ${seconds} seconds ago`;
+                            } else if (minutes < 60) {
+                              timeAgo = minutes === 1
+                                ? "Email sent 1 minute ago"
+                                : `Email sent ${minutes} minutes ago`;
+                            } else if (hours < 24) {
+                              timeAgo = hours === 1
+                                ? "Email sent 1 hour ago"
+                                : `Email sent ${hours} hours ago`;
+                            } else {
+                              timeAgo = days === 1
+                                ? "Email sent 1 day ago"
+                                : `Email sent ${days} days ago`;
+                            }
+                          }
+
+                          return (
+                            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
+                              {timeAgo}
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">
+                          No email sent
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

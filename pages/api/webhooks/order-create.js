@@ -8,6 +8,7 @@ import { updateOrdersOnHold } from '../utils/updateRiskStats';
 import { whichOrdersToFlag } from '../utils/whichOrdersToFlag';
 import { whichOrdersToSendEmail } from '../utils/whichOrdersToSendEmail';
 import withMiddleware from '../utils/middleware/withMiddleware';
+import { EMAIL_RESEND_DELAY_IN_DAYS } from '../../../config/constants';
 
 export const config = {
   api: {
@@ -114,7 +115,7 @@ async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, 
       shop,
       guard: {
         isVerificationRequired: true,
-        email: { lastSentAt: null, count: 0, maxPerPeriod: 1, minResendDelayMs: 3 * 24 * 60 * 60 * 1000 },
+        email: { lastSentAt: null, count: 0, maxPerPeriod: 1, minResendDelayMs: EMAIL_RESEND_DELAY_IN_DAYS * 24 * 60 * 60 * 1000 },
         status: 'pending',
         paymentStatus: { captured: false, cancelled: false },
         riskLevel,

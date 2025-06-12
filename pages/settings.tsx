@@ -66,7 +66,7 @@ const Settings = () => {
   // Fixed: Move element selection inside useEffect to avoid SSR issues
   useEffect(() => {
     const handler = () => setShowVerificationPreviewModal(true);
-    
+
     // Use a small delay to ensure the DOM is fully rendered
     const setupListener = () => {
       const el = document.getElementById('trigger-verification-preview');
@@ -79,7 +79,7 @@ const Settings = () => {
 
     // Try immediately first
     let element = setupListener();
-    
+
     // If element not found, try again after a short delay
     let timeoutId;
     if (!element) {
@@ -460,6 +460,20 @@ const Settings = () => {
             </div>
           </div>
 
+          {/* Contact us section */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Need Help?</h3>
+            <p className="text-gray-600 mb-3">
+              For any questions or technical issues, contact us at:
+            </p>
+            <a
+              href="mailto:admin@getfraudguard.com?subject=FraudGuard Support Request"
+              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+              target='_blank'
+            >
+              📩 admin@getfraudguard.com
+            </a>
+          </div>
         </main>
       </div>
     </>

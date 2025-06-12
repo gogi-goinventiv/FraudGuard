@@ -280,7 +280,7 @@ function canSendEmail(guard) {
 
   const now = Date.now();
   const last = new Date(guard.email.lastSentAt).getTime();
-  const delay = guard.email.minResendDelayMs || (3 * 24 * 60 * 60 * 1000); // default 3 days
+  const delay = guard.email.minResendDelayMs || (EMAIL_RESEND_DELAY_IN_DAYS * 24 * 60 * 60 * 1000); // default EMAIL_RESEND_DELAY_IN_DAYS days
 
   return (now - last) >= delay;
 }
@@ -292,7 +292,7 @@ function getEmailResendWaitTime(guard) {
 
   const now = Date.now();
   const last = new Date(guard.email.lastSentAt).getTime();
-  const delay = guard.email.minResendDelayMs || (3 * 24 * 60 * 60 * 1000); // default 3 days
+  const delay = guard.email.minResendDelayMs || (EMAIL_RESEND_DELAY_IN_DAYS * 24 * 60 * 60 * 1000); // default EMAIL_RESEND_DELAY_IN_DAYS days
   const remainingMs = delay - (now - last);
 
   return Math.max(0, remainingMs); // if negative, return 0
