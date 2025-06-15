@@ -134,8 +134,10 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
         }
 
         // Rule 6: Detection of suspicious proxy use (WEB PROXY)
-        const proxyFact = facts.find(fact =>
-            fact.description?.toLowerCase().includes("proxy")
+        const proxyFact = facts.find(
+            (fact) =>
+                fact.sentiment === "NEGATIVE" &&
+                fact.description?.toLowerCase().includes("proxy")
         );
 
         if (proxyFact) {
