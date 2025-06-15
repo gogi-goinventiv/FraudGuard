@@ -18,6 +18,7 @@
     "@shopify/shopify-app-session-storage-mongodb": "^4.0.17",
     "@vercel/edge": "^1.2.1",
     "cookies-next": "^4.3.0",
+    "currency-codes": "^2.2.0",
     "fs": "^0.0.1-security",
     "geoip-lite": "^1.4.10",
     "isomorphic-fetch": "^3.0.0",

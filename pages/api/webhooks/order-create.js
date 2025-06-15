@@ -120,7 +120,9 @@ async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, 
         paymentStatus: { captured: false, cancelled: false },
         riskLevel,
         shopifyRisk: shopifyRiskAssessments,
-        txnDetails: orderTxnDetails
+        txnDetails: orderTxnDetails,
+        riskStatusTag: riskLevel.risk === 'high' ? 'FG_HighRisk' : riskLevel.risk === 'medium' ? 'FG_MediumRisk' : 'FG_LowRisk',
+        verificationStatusTag: 'FG_VerificationPending',
       },
       receivedAt: new Date(),
     };

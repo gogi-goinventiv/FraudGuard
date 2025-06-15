@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { orderId, shop, orderAmount, notFlagged } = req.body;
+  const { orderId, shop, orderAmount, notFlagged, isManuallyApproved } = req.body;
 
   try {
     const session = await sessionHandler.loadSession(shop);
@@ -76,7 +76,8 @@ export default async function handler(req, res) {
         $set: {
           'guard.status': 'captured payment',
           'guard.paymentStatus.captured': true,
-          'guard.paymentStatus.cancelled': false
+          'guard.paymentStatus.cancelled': false,
+          ...(isManuallyApproved && { 'guard.riskStatusTag': 'none' }),
         }
       } // Update specific fields within guard
     );

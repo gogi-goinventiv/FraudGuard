@@ -147,7 +147,8 @@ async function updateOrderVerificationStatus(db, shop, orderId, status) {
       $set: {
         'guard.isVerificationRequired': false,
         'guard.status': status,
-        'guard.remark': status
+        'guard.remark': status,
+        'guard.verificationStatusTag': status === 'verified' ? 'FG_Verified' : 'FG_Unverified'
       }
     }
   );
@@ -182,7 +183,8 @@ async function handleFailedVerification(db, shop, orderId, orderData, autoCancel
         'guard.remark': 'unverified',
         'guard.attempts': attempts,
         'guard.maxAttemptsReached': true,
-        'guard.lastAttempt': new Date()
+        'guard.lastAttempt': new Date(),
+        'guard.verificationStatusTag': 'FG_Unverified'
       }
     },
     { upsert: true }

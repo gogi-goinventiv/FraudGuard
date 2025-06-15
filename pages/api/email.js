@@ -270,7 +270,7 @@ export default async function handler(req, res) {
     res.status(200).json({ success: true });
   } catch (error) {
     console.error('SendGrid Error:', error.response.body);
-    res.status(500).json({ error: error.response.body });
+    res.status(500).json({ error: error.response.body.errors[0].message? error.response.body.errors[0].message : error.response.body });
   }
 }
 

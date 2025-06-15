@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { orderId, shop, orderAmount } = req.body;
+  const { orderId, shop, orderAmount, isManuallyCancelled } = req.body;
 
   try {
     const session = await sessionHandler.loadSession(shop);
@@ -119,7 +119,8 @@ export default async function handler(req, res) {
           'guard.paymentStatus.cancelled': true,
           'guard.remark': `${previousStatus}`,
           'guard.cancelledAt': new Date(),
-          'cancelData': cancelOrderData
+          'cancelData': cancelOrderData,
+          ...(isManuallyCancelled && { 'guard.riskStatusTag': 'none' }),
         }
       } // Update specific fields within guard
     );

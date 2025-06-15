@@ -2,6 +2,7 @@
 
 import { CARD_ATTEMPTS, FAILED_PAYMENT_ATTEMPTS } from "../../../config/constants";
 import clientPromise from "../../../lib/mongo";
+import currencyCodes from "currency-codes";
 
 function hasMultipleFailedPaymentAttempts(transactionsData) {
     let failCount = 0;
@@ -88,6 +89,58 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
         if (hasUsedMultipleCreditCards(transactionData)) {
             score += 1;
             reason.push(`${CARD_ATTEMPTS} or more credit card attempts`);
+        }
+
+        // Rule 4: Currency mismatch with billing country
+        const currency = order?.currency?.trim();
+        const billingCountry = order?.billing_address?.country?.trim();
+        const currencyInfo = currencyCodes.code(currency); // e.g. { code: 'USD', countries: ['United States', ...] }
+
+        if (currencyInfo && billingCountry && !currencyInfo.countries?.includes(billingCountry)) {
+            score += 1;
+            reason.push("Currency mismatch with billing country");
+        }
+
+        // Rule 5: Shipping address is 349+ km from IP geolocation
+        const facts = shopifyRiskAssessments?.assessments?.[0]?.facts || [];
+
+        let distance = null;
+        let distanceDescription = null;
+
+        for (const fact of facts) {
+            const desc = fact.description || "";
+
+            // Match distances like "2237 km" or "500 miles"
+            const match = desc.match(/(\d+)\s*(km|miles)/i);
+
+            if (match) {
+                const value = parseInt(match[1], 10);
+                const unit = match[2].toLowerCase();
+
+                // Convert to kilometers if in miles
+                const distanceInKm = unit === "miles" ? value * 1.60934 : value;
+
+                if (distanceInKm > 349) {
+                    distance = distanceInKm;
+                    distanceDescription = desc;
+                    break; // Stop at the first suspicious one
+                }
+            }
+        }
+
+        if (distance !== null) {
+            score += 1;
+            reason.push(distanceDescription);
+        }
+
+        // Rule 6: Detection of suspicious proxy use (WEB PROXY)
+        const proxyFact = facts.find(fact =>
+            fact.description?.toLowerCase().includes("proxy")
+        );
+
+        if (proxyFact) {
+            score += 1;
+            reason.push(proxyFact.description);
         }
 
         // return risk level based on score
