@@ -3,6 +3,8 @@
 import sessionHandler from "./utils/sessionHandler";
 import clientPromise from '../../lib/mongo';
 import { incrementRiskPreventedAmount, updateOrdersOnHold } from "./utils/updateRiskStats";
+import { shopify } from "../../lib/shopify";
+import { removeStatusTags } from "./utils/removeStatusTags";
 
 export default async function handler(req, res) {
 
@@ -12,7 +14,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { orderId, shop, orderAmount, isManuallyCancelled } = req.body;
+  const { orderId, shop, orderAmount, isManuallyCancelled, admin_graphql_api_id } = req.body;
 
   try {
     const session = await sessionHandler.loadSession(shop);
@@ -104,10 +106,11 @@ export default async function handler(req, res) {
     // Check if order exists in our database
     const existingOrder = await db.collection('orders').findOne(
       { shop: shop, id: orderId },
-      { projection: { 'guard.status': 1 } }
+      { projection: { 'guard.status': 1, 'guard.riskStatusTag': 1 } }
     );
 
     const previousStatus = existingOrder?.guard?.status || 'unknown';
+    const riskStatusTag = existingOrder?.guard?.riskStatusTag || '';
 
     // Update the order's guard verification field to indicate cancellation
     const result = await db.collection('orders').updateOne(
@@ -129,6 +132,12 @@ export default async function handler(req, res) {
       return res.status(404).json({ message: 'Failed to update order inside database.' });
     }
 
+    const tagsToRemove = isManuallyCancelled ? [riskStatusTag] : '';
+  
+    if (tagsToRemove.length > 0) {
+      await removeStatusTags(new shopify.clients.Graphql({ session }), admin_graphql_api_id, tagsToRemove);
+    }  
+
     await incrementRiskPreventedAmount(shop, parseFloat(orderAmount));
     await updateOrdersOnHold(shop, true, {location: "/cancel"});
 
@@ -142,3 +151,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 }
+

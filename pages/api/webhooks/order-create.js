@@ -9,6 +9,7 @@ import { whichOrdersToFlag } from '../utils/whichOrdersToFlag';
 import { whichOrdersToSendEmail } from '../utils/whichOrdersToSendEmail';
 import withMiddleware from '../utils/middleware/withMiddleware';
 import { EMAIL_RESEND_DELAY_IN_DAYS } from '../../../config/constants';
+import { addStatusTags } from '../utils/addStatusTags';
 
 export const config = {
   api: {
@@ -57,7 +58,7 @@ async function getOrderRisks(shopifyClient, orderIdGid) {
   }
 }
 
-async function getOrderTxnDetails(shopifyClient, orderIdGid){
+async function getOrderTxnDetails(shopifyClient, orderIdGid) {
   const query = `
     query GetOrderTransactions($orderId: ID!) {
       order(id: $orderId) {
@@ -164,9 +165,9 @@ async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, 
         return order;
       };
       const storedOrder = await retryDbOperation(fetchStoredOrderOp);
-      
+
       if (storedOrder && !storedOrder.duplicateKeyError && storedOrder.id) {
-         await makeApiRequest('email', { order: storedOrder }, true);
+        await makeApiRequest('email', { order: storedOrder }, true);
       } else {
         console.warn(`Skipping email for order ${orderData.id}; order not found after upsert or fetch issue.`);
       }
@@ -270,7 +271,7 @@ async function enqueueWebhook(db, webhookData) {
   try {
     await db.collection('webhook-queue').createIndex({ createdAt: 1 }, { background: true });
     await db.collection('webhook-queue').createIndex({ status: 1, createdAt: 1 }, { background: true });
-    
+
     const result = await db.collection('webhook-queue').insertOne(queueItem);
     console.log(`Webhook queued for order ${webhookData.orderData.id} with ID: ${result.insertedId}`);
     return result.insertedId;
@@ -287,7 +288,7 @@ async function triggerQueueProcessor(shop) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shop }),
     });
-    
+
     if (!response.ok) {
       console.warn(`Queue processor trigger failed: ${response.status}`);
     }
@@ -298,16 +299,16 @@ async function triggerQueueProcessor(shop) {
 
 export async function processQueuedWebhook(db, queueItem) {
   const { orderData, shop, idempotencyKey, rawHeaders } = queueItem;
-  
+
   try {
     await db.collection('webhook-queue').updateOne(
       { _id: queueItem._id },
-      { 
-        $set: { 
-          status: 'processing', 
+      {
+        $set: {
+          status: 'processing',
           processingStartedAt: new Date(),
           attempts: queueItem.attempts + 1
-        } 
+        }
       }
     );
 
@@ -319,12 +320,15 @@ export async function processQueuedWebhook(db, queueItem) {
       throw new Error(`Session loading error for ${shop}: ${sessionError.message}`);
     }
 
+    // Create the GraphQL client once with the session
+    const shopifyClient = new shopify.clients.Graphql({ session });
+
     const [riskSettings, shopifyApiRiskData] = await Promise.all([
       fetchRiskSettings(shop),
-      getOrderRisks(new shopify.clients.Graphql({ session }), orderData.admin_graphql_api_id),
+      getOrderRisks(shopifyClient, orderData.admin_graphql_api_id),
     ]);
 
-    const orderTxnDetails = await getOrderTxnDetails(new shopify.clients.Graphql({ session }), orderData.admin_graphql_api_id);
+    const orderTxnDetails = await getOrderTxnDetails(shopifyClient, orderData.admin_graphql_api_id);
     console.log(`Order ${orderData.id} for shop ${shop} has transaction details:`, orderTxnDetails);
 
     const riskLevel = await getRiskLevel(orderData, shop, session.accessToken, shopifyApiRiskData, orderTxnDetails)
@@ -335,7 +339,29 @@ export async function processQueuedWebhook(db, queueItem) {
 
     if (whichOrdersToFlag(riskLevel, riskSettings)) {
       console.log(`Order ${orderData.id} for shop ${shop} is being flagged. Risk: ${riskLevel.risk}, Score: ${riskLevel.score}`);
+      
+      // Handle the flagged order first
       await handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, shopifyApiRiskData, orderTxnDetails);
+      
+      // Add status tags after the order is handled and stored
+      const riskTagStatus = riskLevel.risk === 'high' ? 'FG_HighRisk' : riskLevel.risk === 'medium' ? 'FG_MediumRisk' : '';
+      const verificationStatusTag = 'FG_VerificationPending';
+      
+      // Filter out empty tags
+      const tagsToAdd = [riskTagStatus, verificationStatusTag].filter(tag => tag && tag.trim());
+      
+      if (tagsToAdd.length > 0) {
+        try {
+          const tagResult = await addStatusTags(shopifyClient, orderData.admin_graphql_api_id, tagsToAdd);
+          if (tagResult) {
+            console.log(`Successfully added tags ${tagsToAdd.join(', ')} to order ${orderData.id}`);
+          } else {
+            console.warn(`Failed to add tags to order ${orderData.id}`);
+          }
+        } catch (tagError) {
+          console.error(`Error adding tags to order ${orderData.id}:`, tagError.message);
+        }
+      }
     } else {
       const existingOrderInDb = await db.collection('orders').findOne({ shop, id: orderData.id });
       if (existingOrderInDb) {
@@ -355,11 +381,11 @@ export async function processQueuedWebhook(db, queueItem) {
 
     await db.collection('webhook-queue').updateOne(
       { _id: queueItem._id },
-      { 
-        $set: { 
-          status: 'completed', 
+      {
+        $set: {
+          status: 'completed',
           completedAt: new Date()
-        } 
+        }
       }
     );
 
@@ -368,20 +394,20 @@ export async function processQueuedWebhook(db, queueItem) {
 
   } catch (error) {
     console.error(`Error processing queued webhook for order ${orderData.id}:`, error.message);
-    
+
     const shouldRetry = queueItem.attempts < queueItem.maxAttempts;
-    const updateData = shouldRetry 
-      ? { 
-          status: 'pending', 
-          lastError: error.message, 
-          lastAttemptAt: new Date(),
-          nextAttemptAfter: new Date(Date.now() + (queueItem.attempts * 30000))
-        }
-      : { 
-          status: 'failed', 
-          lastError: error.message, 
-          failedAt: new Date()
-        };
+    const updateData = shouldRetry
+      ? {
+        status: 'pending',
+        lastError: error.message,
+        lastAttemptAt: new Date(),
+        nextAttemptAfter: new Date(Date.now() + (queueItem.attempts * 30000))
+      }
+      : {
+        status: 'failed',
+        lastError: error.message,
+        failedAt: new Date()
+      };
 
     await db.collection('webhook-queue').updateOne(
       { _id: queueItem._id },
@@ -391,7 +417,7 @@ export async function processQueuedWebhook(db, queueItem) {
     if (!shouldRetry) {
       console.error(`Webhook processing failed permanently for order ${orderData.id} after ${queueItem.attempts} attempts`);
     }
-    
+
     return false;
   }
 }
@@ -403,7 +429,7 @@ const handler = async (req, res) => {
 
   const shop = req.headers['x-shopify-shop-domain'];
   const idempotencyKey = req.headers['x-shopify-hmac-sha256'] || req.headers['x-shopify-order-id'];
-  
+
   let rawBodyString;
   try {
     const rawBodyBuffer = await buffer(req);
@@ -429,7 +455,7 @@ const handler = async (req, res) => {
     console.error('Invalid webhook data: Missing shop, order ID, or admin_graphql_api_id.', { shop, orderId: orderData?.id });
     return res.status(400).json({ error: 'Incomplete or invalid order data in webhook.' });
   }
-  
+
   let mongoClient;
   let db;
   try {
@@ -456,12 +482,12 @@ const handler = async (req, res) => {
     };
 
     await enqueueWebhook(db, webhookData);
-    
+
     triggerQueueProcessor(shop);
 
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Webhook received and queued for processing' 
+    return res.status(200).json({
+      success: true,
+      message: 'Webhook received and queued for processing'
     });
 
   } catch (error) {

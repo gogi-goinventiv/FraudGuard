@@ -199,7 +199,7 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
         const res = await fetch("/api/capture", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId, shop, orderAmount: currentOrder?.total_price, isManuallyApproved: true }),
+          body: JSON.stringify({ orderId, shop, orderAmount: currentOrder?.total_price, isManuallyApproved: true, admin_graphql_api_id: currentOrder?.admin_graphql_api_id }),
         });
 
         const data = await res.json();
@@ -228,7 +228,7 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
         const res = await fetch("/api/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId, shop, orderAmount: currentOrder?.total_price, isManuallyCancelled: true }),
+          body: JSON.stringify({ orderId, shop, orderAmount: currentOrder?.total_price, isManuallyCancelled: true, admin_graphql_api_id: currentOrder?.admin_graphql_api_id }),
         });
 
         await res.json();

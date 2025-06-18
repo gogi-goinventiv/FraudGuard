@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 import sessionHandler from './utils/sessionHandler';
 import clientPromise from '../../lib/mongo';
+import { removeStatusTags } from './utils/removeStatusTags';
+import { addStatusTags } from './utils/addStatusTags';
+import { shopify } from "../../lib/shopify";
 
 const MAX_VERIFICATION_ATTEMPTS = 3;
 
@@ -37,8 +40,8 @@ export default async function handler(req, res) {
     });
 
     if (existingOrder?.guard?.attempts >= MAX_VERIFICATION_ATTEMPTS) {
-      return res.status(429).json({ 
-        error: 'Maximum verification attempts exceeded', 
+      return res.status(429).json({
+        error: 'Maximum verification attempts exceeded',
         message: 'No more attempts allowed for this order'
       });
     }
@@ -77,7 +80,7 @@ export default async function handler(req, res) {
 
     const billingZip = orderData.billing_address?.zip;
     const requiresZipValidation = billingZip && zipCode !== undefined;
-    
+
     if (billingZip && !zipCode) {
       return res.status(400).json({ error: 'Missing zip code', message: 'Zip code is required' });
     }
@@ -94,25 +97,25 @@ export default async function handler(req, res) {
 
     if (!isValid) {
       const remainingAttempts = MAX_VERIFICATION_ATTEMPTS - currentAttempts;
-      
+
       if (currentAttempts >= MAX_VERIFICATION_ATTEMPTS) {
-        await handleFailedVerification(db, shop, orderId, orderData, riskSettings.autoCancelUnverified, currentAttempts);
-        return res.status(429).json({ 
+        await handleFailedVerification(db, shop, orderId, orderData, riskSettings.autoCancelUnverified, currentAttempts, session);
+        return res.status(429).json({
           error: 'Maximum verification attempts exceeded',
           message: 'Order has been marked as unverified due to multiple failed attempts'
         });
       }
 
       await incrementVerificationAttempts(db, shop, orderId, currentAttempts);
-      
+
       const errorMessage = !validTransaction ? 'Invalid last four digits' : 'Invalid zip code';
-      return res.status(422).json({ 
+      return res.status(422).json({
         error: errorMessage,
         message: `You have ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} left`
       });
     }
 
-    const result = await updateOrderVerificationStatus(db, shop, orderId, 'verified');
+    const result = await updateOrderVerificationStatus(db, shop, orderId, 'verified', session);
 
     if (riskSettings.autoApproveVerified) {
       handleAutoCapture(shop, orderId, orderData?.total_price);
@@ -136,7 +139,28 @@ export default async function handler(req, res) {
   }
 }
 
-async function updateOrderVerificationStatus(db, shop, orderId, status) {
+async function updateOrderVerificationStatus(db, shop, orderId, status, session) {
+
+  const shopifyClient = new shopify.clients.Graphql({ session });
+
+  const existingOrder = await db.collection('orders').findOne(
+    { shop: shop, id: orderId },
+    { projection: { 'admin_graphql_api_id': 1, 'guard.verificationStatusTag': 1 } }
+  );
+
+  if (status === 'verified') {
+    const tagsToRemove = [existingOrder?.guard?.verificationStatusTag] || [];
+    const tagsToAdd = ['FG_Verified'];
+
+    if (tagsToRemove.length > 0) {
+      await removeStatusTags(shopifyClient, existingOrder?.admin_graphql_api_id, tagsToRemove);
+    }
+
+    if (tagsToAdd.length > 0) {
+      await addStatusTags(shopifyClient, existingOrder?.admin_graphql_api_id, tagsToAdd);
+    }
+  }
+
   return db.collection('orders').updateOne(
     {
       shop: shop,
@@ -170,7 +194,26 @@ async function incrementVerificationAttempts(db, shop, orderId, attempts) {
   );
 }
 
-async function handleFailedVerification(db, shop, orderId, orderData, autoCancelUnverified, attempts) {
+async function handleFailedVerification(db, shop, orderId, orderData, autoCancelUnverified, attempts, session) {
+
+  const shopifyClient = new shopify.clients.Graphql({ session });
+
+  const existingOrder = await db.collection('orders').findOne(
+    { shop: shop, id: orderId },
+    { projection: { 'admin_graphql_api_id': 1, 'guard.verificationStatusTag': 1 } }
+  );
+
+  const tagsToRemove = [existingOrder?.guard?.verificationStatusTag] || [];
+  const tagsToAdd = ['FG_Unverified'];
+
+  if (tagsToRemove.length > 0) {
+    await removeStatusTags(shopifyClient, existingOrder?.admin_graphql_api_id, tagsToRemove);
+  }
+
+  if (tagsToAdd.length > 0) {
+    await addStatusTags(shopifyClient, existingOrder?.admin_graphql_api_id, tagsToAdd);
+  }
+
   await db.collection('orders').updateOne(
     {
       shop: shop,
@@ -189,7 +232,7 @@ async function handleFailedVerification(db, shop, orderId, orderData, autoCancel
     },
     { upsert: true }
   );
-  
+
   if (autoCancelUnverified) {
     try {
       const cancelResponse = await fetch(`${process.env.HOST}/api/cancel`, {
@@ -197,12 +240,12 @@ async function handleFailedVerification(db, shop, orderId, orderData, autoCancel
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, shop, orderAmount: orderData?.total_price }),
       });
-      
+
       if (!cancelResponse.ok) {
         const cancelData = await cancelResponse.json();
         throw new Error(cancelData.error || 'Auto cancel failed');
       }
-      
+
       console.log('Auto cancelling unverified orders');
     } catch (error) {
       console.log('Auto cancel failed:', error);
@@ -217,12 +260,12 @@ async function handleAutoCapture(shop, orderId, orderAmount) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId, shop, orderAmount }),
     });
-    
+
     if (!captureResponse.ok) {
       const captureData = await captureResponse.json();
       throw new Error(captureData.error || 'Auto capture failed');
     }
-    
+
     console.log('Auto capturing verified orders');
   } catch (error) {
     console.log('Auto capture failed:', error);

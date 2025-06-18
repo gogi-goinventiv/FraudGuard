@@ -3,16 +3,18 @@
 import sessionHandler from "./utils/sessionHandler";
 import clientPromise from '../../lib/mongo';
 import { updateOrdersOnHold } from "./utils/updateRiskStats";
+import { shopify } from "../../lib/shopify";
+import { removeStatusTags } from "./utils/removeStatusTags";
 
 export default async function handler(req, res) {
 
   const client = await clientPromise;
-  
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { orderId, shop, orderAmount, notFlagged, isManuallyApproved } = req.body;
+  const { orderId, shop, orderAmount, notFlagged, isManuallyApproved, admin_graphql_api_id } = req.body;
 
   try {
     const session = await sessionHandler.loadSession(shop);
@@ -70,6 +72,14 @@ export default async function handler(req, res) {
     const storeName = shop.split('.')[0];
     const db = client.db(storeName);
 
+    // Get risk status tag for the order
+    const existingOrder = await db.collection('orders').findOne(
+      { shop: shop, id: orderId },
+      { projection: { 'guard.riskStatusTag': 1 } }
+    );
+
+    const riskStatusTag = existingOrder?.guard?.riskStatusTag || '';
+
     const result = await db.collection('orders').updateOne(
       { 'shop': shop, 'id': orderId }, // Filter by shop and orderId
       {
@@ -86,7 +96,13 @@ export default async function handler(req, res) {
       return res.status(404).json({ message: 'Failed to update order inside database.' });
     }
 
-    await updateOrdersOnHold(shop, true, {location: "/capture"});
+    const tagsToRemove = isManuallyApproved ? [riskStatusTag] : '';
+
+    if (tagsToRemove.length > 0) {
+      await removeStatusTags(new shopify.clients.Graphql({ session }), admin_graphql_api_id, tagsToRemove);
+    }
+
+    await updateOrdersOnHold(shop, true, { location: "/capture" });
 
     res.status(200).json({ success: true, transaction: captureData.transaction });
   } catch (err) {
