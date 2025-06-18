@@ -6,6 +6,7 @@ import {
 } from "../../utils/verification";
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 import { Pagination } from "./Dashboard";
+import { SCORE_THRESHOLD_HIGH_RISK, SCORE_THRESHOLD_MEDIUM_RISK } from '../../config/constants';
 
 interface OrdersTableProps {
   orders: any[];
@@ -119,11 +120,11 @@ export default function OrdersTable({
                   <td className="p-4 min-w-[10vw]">
                     <span className="font-bold text-[#437fc4] mr-2">{`FraudGuard: `}</span>
                     {typeof score === "number" ? (
-                      score < 2 ? (
+                      score < SCORE_THRESHOLD_MEDIUM_RISK ? (
                         <span className="px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-900">
                           LOW RISK
                         </span>
-                      ) : score < 3 ? (
+                      ) : score < SCORE_THRESHOLD_HIGH_RISK ? (
                         <span className="px-2 py-1 rounded-md text-xs font-medium bg-orange-100 text-yellow-900">
                           MEDIUM RISK
                         </span>
