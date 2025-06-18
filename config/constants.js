@@ -1,3 +1,5 @@
 export const CARD_ATTEMPTS = 3;
 export const FAILED_PAYMENT_ATTEMPTS = 3;
 export const EMAIL_RESEND_DELAY_IN_DAYS = 1;
+export const SCORE_THRESHOLD_MEDIUM_RISK = 3;
+export const SCORE_THRESHOLD_HIGH_RISK = 4;

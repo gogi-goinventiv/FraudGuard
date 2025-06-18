@@ -1,8 +1,8 @@
 // pages/api/utils/riskLevel.js
 
-import { CARD_ATTEMPTS, FAILED_PAYMENT_ATTEMPTS } from "../../../config/constants";
+import { CARD_ATTEMPTS, FAILED_PAYMENT_ATTEMPTS, SCORE_THRESHOLD_HIGH_RISK, SCORE_THRESHOLD_MEDIUM_RISK } from "../../../config/constants";
 import clientPromise from "../../../lib/mongo";
-import currencyCodes from "currency-codes";
+// import currencyCodes from "currency-codes";
 
 function hasMultipleFailedPaymentAttempts(transactionsData) {
     let failCount = 0;
@@ -91,15 +91,15 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
             reason.push(`${CARD_ATTEMPTS} or more credit card attempts`);
         }
 
-        // Rule 4: Currency mismatch with billing country
-        const currency = order?.currency?.trim();
-        const billingCountry = order?.billing_address?.country?.trim();
-        const currencyInfo = currencyCodes.code(currency); // e.g. { code: 'USD', countries: ['United States', ...] }
+        // Rule 4: Currency mismatch with billing country (removed as of now)
+        // const currency = order?.currency?.trim();
+        // const billingCountry = order?.billing_address?.country?.trim();
+        // const currencyInfo = currencyCodes.code(currency); // e.g. { code: 'USD', countries: ['United States', ...] }
 
-        if (currencyInfo && billingCountry && !currencyInfo.countries?.includes(billingCountry)) {
-            score += 1;
-            reason.push("Currency mismatch with billing country");
-        }
+        // if (currencyInfo && billingCountry && !currencyInfo.countries?.includes(billingCountry)) {
+        //     score += 1;
+        //     reason.push("Currency mismatch with billing country");
+        // }
 
         // Rule 5: Shipping address is 349+ km from IP geolocation
         const facts = shopifyRiskAssessments?.assessments?.[0]?.facts || [];
@@ -153,15 +153,15 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
         if (shopifyRiskAssessments?.assessments?.[0].riskLevel === 'HIGH') return { score, reason, risk: 'high' };
         if (shopifyRiskAssessments?.assessments?.[0].riskLevel === 'MEDIUM') return { score, reason, risk: 'medium' };
 
-        if (score < 2) {
+        if (score < SCORE_THRESHOLD_MEDIUM_RISK) {
             if (hasBeenUsedBefore) {
                 reason.push('Past fraudulent behaviour');
                 return { score, reason, risk: 'medium' };
             }
             return { score, reason, risk: 'low' };
-        }                                                            // Scores 0-1 are low
-        if (score < 3) return { score, reason, risk: 'medium' };     // Scores 2 are medium
-        return { score, reason, risk: 'high' };                      // Scores 3+ are high
+        }                                                            // Scores 0-2 are low
+        if (score < SCORE_THRESHOLD_HIGH_RISK) return { score, reason, risk: 'medium' };     // Scores 3 are medium
+        return { score, reason, risk: 'high' };                      // Scores 4+ are high
 
     } catch (error) {
         console.error(error);
