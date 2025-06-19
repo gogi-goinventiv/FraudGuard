@@ -3,25 +3,124 @@ import { DeliveryMethod } from '@shopify/shopify-api';
 import { shopify } from '../../../lib/shopify';
 import sessionHandler from '../utils/sessionHandler';
 
+const BILLING_SETTINGS = {
+  chargeName: process.env.SHOPIFY_BILLING_PLAN_NAME || 'Premium Plan',
+  amount: parseFloat(process.env.SHOPIFY_BILLING_AMOUNT || '29.99'),
+  currencyCode: process.env.SHOPIFY_BILLING_CURRENCY || 'USD',
+  interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS',
+  trialDays: parseInt(process.env.SHOPIFY_BILLING_TRIAL_DAYS || '7'),
+  test: process.env.NODE_ENV !== 'production',
+};
+
+async function checkBillingStatus(session) {
+  const client = new shopify.clients.Graphql({ session });
+
+  const query = `
+    query {
+      currentAppInstallation {
+        activeSubscriptions {
+          id
+          name
+          status
+          createdAt
+          currentPeriodEnd
+          trialDays
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await client.query({ data: query });
+    const subscriptions = response.body.data.currentAppInstallation.activeSubscriptions;
+    
+    return subscriptions && subscriptions.length > 0 && 
+           subscriptions.some(sub => sub.status === 'ACTIVE');
+  } catch (error) {
+    console.error('Error checking billing status:', error);
+    return false;
+  }
+}
+
+async function createBillingSubscription(session, host = '') {
+  const client = new shopify.clients.Graphql({ session });
+
+  const mutation = `
+    mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean, $trialDays: Int) {
+      appSubscriptionCreate(name: $name, lineItems: $lineItems, returnUrl: $returnUrl, test: $test, trialDays: $trialDays) {
+        userErrors {
+          field
+          message
+        }
+        confirmationUrl
+        appSubscription {
+          id
+          name
+          status
+          createdAt
+          trialDays
+          currentPeriodEnd
+        }
+      }
+    }
+  `;
+
+  const returnUrl = `${process.env.HOST}/?shop=${session.shop}&host=${host}`;
+  
+  const variables = {
+    name: BILLING_SETTINGS.chargeName,
+    returnUrl: returnUrl,
+    test: BILLING_SETTINGS.test,
+    trialDays: BILLING_SETTINGS.trialDays,
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            price: {
+              amount: BILLING_SETTINGS.amount,
+              currencyCode: BILLING_SETTINGS.currencyCode,
+            },
+            interval: BILLING_SETTINGS.interval,
+          },
+        },
+      },
+    ],
+  };
+
+  try {
+    console.log('Creating subscription with variables:', JSON.stringify(variables, null, 2));
+    const response = await client.query({
+      data: { query: mutation, variables },
+    });
+
+    console.log('Subscription response:', JSON.stringify(response.body, null, 2));
+
+    if (response.body.data.appSubscriptionCreate.userErrors.length > 0) {
+      throw new Error(
+        `Billing API error: ${response.body.data.appSubscriptionCreate.userErrors[0].message}`
+      );
+    }
+
+    return response.body.data.appSubscriptionCreate.confirmationUrl;
+  } catch (error) {
+    console.error('Error creating subscription:', error);
+    throw error;
+  }
+}
+
 export default async function handler(req, res) {
   try {
-
-    // This handles the OAuth callback and automatically stores the session
     const callback = await shopify.auth.callback({
       rawRequest: req,
       rawResponse: res,
     });
 
-    // Get session details
     const { session } = callback;
     const accessToken = session.accessToken;
     const shop = session.shop;
 
-    // console.log("Shop:", shop);
     console.log("Access token:", accessToken);
-    // console.log("Session:", session);
 
-    // Register webhook for order creation using the new approach
     shopify.webhooks.addHandlers({
       ORDERS_CREATE: [
         {
@@ -35,13 +134,18 @@ export default async function handler(req, res) {
           callbackUrl: `${process.env.HOST}/api/webhooks/order-cancel`,
         },
       ],
+      APP_SUBSCRIPTIONS_UPDATE: [
+        {
+          deliveryMethod: DeliveryMethod.Http,
+          callbackUrl: `${process.env.HOST}/api/webhooks/app-subscription-update`,
+        },
+      ],
       APP_UNINSTALLED: [
         {
           deliveryMethod: DeliveryMethod.Http,
           callbackUrl: `${process.env.HOST}/api/webhooks/app-uninstalled`,
         },
       ],
-      // mandatory compliance webhooks 
       CUSTOMERS_DATA_REQUEST: [
         {
           deliveryMethod: DeliveryMethod.Http,
@@ -61,19 +165,26 @@ export default async function handler(req, res) {
         },
       ]
     });
-
-    // Register the webhooks with Shopify
+    
     const registerResponse = await shopify.webhooks.register({
       session,
     });
-
+    
     console.log('Webhook registration result:', JSON.stringify(registerResponse, null, 2));
 
     await sessionHandler.storeSession(session);
-    // Redirect to the app
+
+    if (process.env.SHOPIFY_BILLING_REQUIRED === 'true') {
+      const hasPayment = await checkBillingStatus(session);
+      
+      if (!hasPayment) {
+        const billingUrl = await createBillingSubscription(session, req.query.host);
+        return res.redirect(billingUrl);
+      }
+    }
+
     console.log(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
     const host = req.query.host;
-    // Make sure it's a complete URL
     res.redirect(`/?shop=${shop}&host=${host}`);
 
   } catch (e) {
