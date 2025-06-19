@@ -35,6 +35,12 @@ export default async function handler(req, res) {
           callbackUrl: `${process.env.HOST}/api/webhooks/order-cancel`,
         },
       ],
+      APP_UNINSTALLED: [
+        {
+          deliveryMethod: DeliveryMethod.Http,
+          callbackUrl: `${process.env.HOST}/api/webhooks/app-uninstalled`,
+        },
+      ],
       // mandatory compliance webhooks 
       CUSTOMERS_DATA_REQUEST: [
         {
@@ -55,12 +61,12 @@ export default async function handler(req, res) {
         },
       ]
     });
-    
+
     // Register the webhooks with Shopify
     const registerResponse = await shopify.webhooks.register({
       session,
     });
-    
+
     console.log('Webhook registration result:', JSON.stringify(registerResponse, null, 2));
 
     await sessionHandler.storeSession(session);
