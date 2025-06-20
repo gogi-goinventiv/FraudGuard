@@ -10,6 +10,17 @@ export default async function handler(req, res) {
             const session = await sessionHandler.loadSession(shop);
 
             if (session) {
+                // Check billing status if billing is required
+                if (process.env.SHOPIFY_BILLING_REQUIRED === 'true') {
+                    const { getBillingStatus } = await import('../../../lib/billingMiddleware');
+                    const billingStatus = await getBillingStatus(session);
+                    if (!billingStatus.hasActiveSubscription && billingStatus.billingUrl) {
+                        // Redirect to billing if no active subscription
+                        res.redirect(302, billingStatus.billingUrl);
+                        return;
+                    }
+                }
+                // Session exists and billing is either not required or active
                 res.redirect(302, `/?shop=${shop}&host=${host}`);
                 return;
             }
