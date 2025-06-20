@@ -189,6 +189,17 @@ export default async function handler(req, res) {
 
   } catch (e) {
     console.error("Error during auth callback", e);
+
+    // Detect missing OAuth cookie error and restart OAuth
+    if (
+      e.message &&
+      e.message.includes('Could not find an OAuth cookie')
+    ) {
+      const shop = req.query.shop;
+      const host = req.query.host;
+      return res.redirect(`/api/auth?shop=${shop}&host=${host}`);
+    }
+
     res.status(500).send({
       error: e.message
     });
