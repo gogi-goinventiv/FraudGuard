@@ -23,6 +23,13 @@ export default function Home() {
   useEffect(() => {
     if (!shop) return;
 
+    // Handle billing redirect if required
+    if (router.query.billingRequired === '1' && router.query.billingUrl) {
+      const redirect = Redirect.create(app);
+      redirect.dispatch(Redirect.Action.REMOTE, router.query.billingUrl as string);
+      return;
+    }
+
     // Ensure we are running inside the Shopify Admin iframe
     if (window.top === window.self) {
       // Not embedded – redirect to embedded version
@@ -74,6 +81,18 @@ export default function Home() {
 
     checkOnboardingStatus();
   }, [shop, host]);
+
+  if (router.query.billingRequired === '1') {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '50px' }}>
+        <h1>Subscription Required</h1>
+        <p>
+          A subscription is required to use this app.<br />
+          You are being redirected to the subscription page...
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) return <SkeletonLoader />;
   return <DashboardPage onboardingRequired={onboardingRequired} />;

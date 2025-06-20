@@ -15,8 +15,8 @@ export default async function handler(req, res) {
                     const { getBillingStatus } = await import('../../../lib/billingMiddleware');
                     const billingStatus = await getBillingStatus(session);
                     if (!billingStatus.hasActiveSubscription && billingStatus.billingUrl) {
-                        // Redirect to billing if no active subscription
-                        res.redirect(302, billingStatus.billingUrl);
+                        // Redirect to app root with billingRequired and billingUrl as query params
+                        res.redirect(302, `/?shop=${shop}&host=${host}&billingRequired=1&billingUrl=${encodeURIComponent(billingStatus.billingUrl)}`);
                         return;
                     }
                 }
