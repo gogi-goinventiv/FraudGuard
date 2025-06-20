@@ -172,8 +172,6 @@ export default async function handler(req, res) {
     
     console.log('Webhook registration result:', JSON.stringify(registerResponse, null, 2));
 
-    await sessionHandler.storeSession(session);
-
     if (process.env.SHOPIFY_BILLING_REQUIRED === 'true') {
       const hasPayment = await checkBillingStatus(session);
       
@@ -181,6 +179,11 @@ export default async function handler(req, res) {
         const billingUrl = await createBillingSubscription(session, req.query.host);
         return res.redirect(billingUrl);
       }
+      // Store session only if billing is required and merchant has an active subscription
+      await sessionHandler.storeSession(session);
+    } else {
+      // Store session if billing is not required
+      await sessionHandler.storeSession(session);
     }
 
     console.log(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
