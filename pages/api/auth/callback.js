@@ -31,7 +31,7 @@ async function checkBillingStatus(session) {
   `;
 
   try {
-    const response = await client.query({ data: query });
+    const response = await client.request(query);
     const subscriptions = response.body.data.currentAppInstallation.activeSubscriptions;
     
     return subscriptions && subscriptions.length > 0 && 
@@ -89,9 +89,7 @@ async function createBillingSubscription(session, host = '') {
 
   try {
     console.log('Creating subscription with variables:', JSON.stringify(variables, null, 2));
-    const response = await client.query({
-      data: { query: mutation, variables },
-    });
+    const response = await client.request(mutation, { variables });
 
     console.log('Subscription response:', JSON.stringify(response.body, null, 2));
 
