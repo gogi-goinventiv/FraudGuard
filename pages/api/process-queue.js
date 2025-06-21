@@ -2,6 +2,7 @@
 import clientPromise from '../../lib/mongo';
 import { processQueuedWebhook } from './webhooks/order-create';
 import { processQueuedCancelWebhook } from './webhooks/order-cancel';
+import { processQueuedSubscriptionWebhook } from './webhooks/app-subscription-update';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -51,6 +52,14 @@ export default async function handler(req, res) {
           results.push({ 
             orderId: item.orderCancelData?.id || 'unknown', 
             type: 'order_cancel',
+            success: result,
+            _id: item._id 
+          });
+        } else if (item.type === 'subscription-update') {
+          result = await processQueuedSubscriptionWebhook(db, item);
+          results.push({ 
+            shop: item.shop || 'unknown', 
+            type: 'subscription-update',
             success: result,
             _id: item._id 
           });
