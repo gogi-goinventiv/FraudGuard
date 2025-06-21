@@ -191,15 +191,36 @@ const handler = async (req, res) => {
   let subscription;
   try {
     subscription = JSON.parse(rawBodyString);
+    console.log('Subscription webhook payload:', JSON.stringify(subscription, null, 2));
   } catch (parseError) {
     console.error('Failed to parse webhook JSON body:', parseError);
     return res.status(400).json({ error: 'Invalid JSON in webhook body' });
   }
 
-  if (!shop || !subscription?.status) {
-    console.error('Invalid webhook data: Missing shop or subscription status.', { shop, status: subscription?.status });
+  // Extract shop from headers and subscription status from payload
+  const shopDomain = shop;
+  const subscriptionStatus = subscription?.status || subscription?.app_subscription?.status;
+  
+  if (!shopDomain || !subscriptionStatus) {
+    console.error('Invalid webhook data:', { 
+      shop: shopDomain, 
+      status: subscriptionStatus,
+      subscriptionKeys: Object.keys(subscription || {}),
+      subscription: subscription 
+    });
     return res.status(400).json({ error: 'Incomplete or invalid subscription data in webhook.' });
   }
+
+  // Normalize the subscription data structure
+  const normalizedSubscription = {
+    status: subscriptionStatus,
+    app_installation: {
+      shop: {
+        domain: shopDomain
+      }
+    },
+    ...subscription
+  };
 
   let mongoClient;
   let db;
@@ -214,8 +235,8 @@ const handler = async (req, res) => {
 
   try {
     const webhookData = {
-      subscription,
-      shop,
+      subscription: normalizedSubscription,
+      shop: shopDomain,
       idempotencyKey,
       rawHeaders: req.headers
     };
