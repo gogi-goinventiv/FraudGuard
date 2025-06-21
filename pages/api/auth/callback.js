@@ -32,7 +32,7 @@ async function checkBillingStatus(session) {
 
   try {
     const response = await client.request(query);
-    const subscriptions = response.body.data.currentAppInstallation.activeSubscriptions;
+    const subscriptions = response.data.currentAppInstallation.activeSubscriptions;
     
     return subscriptions && subscriptions.length > 0 && 
            subscriptions.some(sub => sub.status === 'ACTIVE');
@@ -91,15 +91,15 @@ async function createBillingSubscription(session, host = '') {
     console.log('Creating subscription with variables:', JSON.stringify(variables, null, 2));
     const response = await client.request(mutation, { variables });
 
-    console.log('Subscription response:', JSON.stringify(response.body, null, 2));
+    console.log('Subscription response:', JSON.stringify(response, null, 2));
 
-    if (response.body.data.appSubscriptionCreate.userErrors.length > 0) {
+    if (response.data.appSubscriptionCreate.userErrors.length > 0) {
       throw new Error(
-        `Billing API error: ${response.body.data.appSubscriptionCreate.userErrors[0].message}`
+        `Billing API error: ${response.data.appSubscriptionCreate.userErrors[0].message}`
       );
     }
 
-    return response.body.data.appSubscriptionCreate.confirmationUrl;
+    return response.data.appSubscriptionCreate.confirmationUrl;
   } catch (error) {
     console.error('Error creating subscription:', error);
     throw error;
