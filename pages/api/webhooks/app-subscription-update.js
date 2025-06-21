@@ -199,7 +199,7 @@ const handler = async (req, res) => {
 
   // Extract shop from headers and subscription status from payload
   const shopDomain = shop;
-  const subscriptionStatus = subscription?.status || subscription?.app_subscription?.status;
+  const subscriptionStatus = subscription?.app_subscription?.status;
   
   if (!shopDomain || !subscriptionStatus) {
     console.error('Invalid webhook data:', { 
@@ -211,7 +211,7 @@ const handler = async (req, res) => {
     return res.status(400).json({ error: 'Incomplete or invalid subscription data in webhook.' });
   }
 
-  // Normalize the subscription data structure
+  // Normalize the subscription data structure to match expected format
   const normalizedSubscription = {
     status: subscriptionStatus,
     app_installation: {
@@ -219,7 +219,7 @@ const handler = async (req, res) => {
         domain: shopDomain
       }
     },
-    ...subscription
+    app_subscription: subscription.app_subscription
   };
 
   let mongoClient;
