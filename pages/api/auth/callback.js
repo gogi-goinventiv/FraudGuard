@@ -9,7 +9,7 @@ const BILLING_SETTINGS = {
   currencyCode: process.env.SHOPIFY_BILLING_CURRENCY || 'USD',
   interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS',
   trialDays: parseInt(process.env.SHOPIFY_BILLING_TRIAL_DAYS || '7'),
-  test: true,
+  test: process.env.NODE_ENV !== 'production'
 };
 
 async function checkBillingStatus(session) {
