@@ -1,3 +1,4 @@
+// pages/api/validation.js
 import jwt from 'jsonwebtoken';
 import sessionHandler from './utils/sessionHandler';
 import clientPromise from '../../lib/mongo';
@@ -23,7 +24,18 @@ export default async function handler(req, res) {
     }
 
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    const { lastFourDigits, zipCode } = req.body;
+    const {
+      lastFourDigits,
+      cardholderName,
+      zipCode,
+      billing_first_name,
+      billing_last_name,
+      billing_address1,
+      billing_city,
+      billing_zip,
+      billing_province,
+      billing_country
+    } = req.body;
     const { orderId, customerEmail, shop } = decodedToken;
 
     if (!orderId || !customerEmail || !shop || !lastFourDigits) {
@@ -78,26 +90,58 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Invalid customer email' });
     }
 
-    const billingZip = orderData.billing_address?.zip;
-    const requiresZipValidation = billingZip && zipCode !== undefined;
+    const billing = orderData.billing_address || {};
+    const errors = {};
 
-    if (billingZip && !zipCode) {
-      return res.status(400).json({ error: 'Missing zip code', message: 'Zip code is required' });
-    }
-
+    // Validate last four digits (as before)
     const validTransaction = txnData.transactions.some(txn =>
       txn.status === 'success' &&
       txn.payment_details?.credit_card_number?.slice(-4) === lastFourDigits
     );
+    if (!validTransaction) errors.lastFourDigits = 'Last 4 digits do not match any successful transaction';
 
-    const zipValid = !requiresZipValidation || billingZip === zipCode;
-    const isValid = validTransaction && zipValid;
+    // Validate cardholder name (case-insensitive, ignore spaces)
+    if (cardholderName && billing.name) {
+      const normalize = s => s.replace(/\s+/g, '').toLowerCase();
+      if (normalize(cardholderName) !== normalize(billing.name)) {
+        errors.cardholderName = 'Cardholder name does not match billing name';
+      }
+    }
 
-    const currentAttempts = (existingOrder?.guard?.attempts || 0) + 1;
+    // Validate address fields
+    if (billing_first_name && billing.first_name && billing_first_name.trim().toLowerCase() !== billing.first_name.trim().toLowerCase()) {
+      errors.billing_first_name = 'First name does not match';
+    }
+    if (billing_last_name && billing.last_name && billing_last_name.trim().toLowerCase() !== billing.last_name.trim().toLowerCase()) {
+      errors.billing_last_name = 'Last name does not match';
+    }
+    if (billing_address1 && billing.address1 && billing_address1.trim().toLowerCase() !== billing.address1.trim().toLowerCase()) {
+      errors.billing_address1 = 'Street address does not match';
+    }
+    if (billing_city && billing.city && billing_city.trim().toLowerCase() !== billing.city.trim().toLowerCase()) {
+      errors.billing_city = 'City does not match';
+    }
+    if (billing_zip && billing.zip && billing_zip.trim().toLowerCase() !== billing.zip.trim().toLowerCase()) {
+      errors.billing_zip = 'Zip code does not match';
+    }
+    if (billing_province && billing.province && billing_province.trim().toLowerCase() !== billing.province.trim().toLowerCase()) {
+      errors.billing_province = 'Province does not match';
+    }
+    if (billing_country && billing.country && billing_country.trim().toLowerCase() !== billing.country.trim().toLowerCase()) {
+      errors.billing_country = 'Country does not match';
+    }
+    // Validate zipCode (form field) against billing zip
+    if (billing.zip && zipCode && zipCode.trim().toLowerCase() !== billing.zip.trim().toLowerCase()) {
+      errors.zipCode = 'Zip code does not match billing address';
+    }
 
-    if (!isValid) {
-      const remainingAttempts = MAX_VERIFICATION_ATTEMPTS - currentAttempts;
+    // If any errors, return them
+    if (Object.keys(errors).length > 0) {
+      // Increment attempts as in your current logic
+      const currentAttempts = (existingOrder?.guard?.attempts || 0) + 1;
+      await incrementVerificationAttempts(db, shop, orderId, currentAttempts);
 
+      // Check if max attempts reached
       if (currentAttempts >= MAX_VERIFICATION_ATTEMPTS) {
         await handleFailedVerification(db, shop, orderId, orderData, riskSettings.autoCancelUnverified, currentAttempts, session);
         return res.status(429).json({
@@ -106,11 +150,10 @@ export default async function handler(req, res) {
         });
       }
 
-      await incrementVerificationAttempts(db, shop, orderId, currentAttempts);
-
-      const errorMessage = !validTransaction ? 'Invalid last four digits' : 'Invalid zip code';
-      return res.status(422).json({
-        error: errorMessage,
+      const remainingAttempts = MAX_VERIFICATION_ATTEMPTS - currentAttempts;
+      return res.status(422).json({ 
+        error: 'Validation failed', 
+        details: errors,
         message: `You have ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} left`
       });
     }
