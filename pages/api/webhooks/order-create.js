@@ -106,11 +106,47 @@ async function makeApiRequest(endpoint, data, ignoreErrors = false) {
   }
 }
 
+// Utility to fetch exchange rates and convert to USD
+async function getOrderAmountInUSD(orderData) {
+  const amount = parseFloat(orderData.total_price);
+  const currency = orderData.currency || 'USD';
+  if (currency === 'USD') return amount;
+  try {
+    const res = await fetch(`${process.env.HOST}/api/exchange-rate`);
+    if (!res.ok) throw new Error('Failed to fetch exchange rates');
+    const data = await res.json();
+    const rates = Array.isArray(data) && data.length > 0 ? data[0].rates : [];
+    const rateObj = rates.find(r => r.currency_code === currency);
+    if (!rateObj || !rateObj.rate_per_usd) return amount; // fallback: treat as USD
+    // rate_per_usd: 1 USD = X currency, so USD = amount / rate_per_usd
+    return amount / rateObj.rate_per_usd;
+  } catch (e) {
+    console.warn('Currency conversion failed:', e.message);
+    return amount;
+  }
+}
+
 async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, shopifyRiskAssessments, orderTxnDetails) {
   const existingOrder = await db.collection('orders').findOne({ shop, id: orderData.id });
   if (existingOrder) {
     console.log(`Order ${orderData.id} for shop ${shop} already exists in database. Skipping insertion step.`);
   } else {
+    // --- Tiering logic ---
+    let tier = null;
+    try {
+      const amountUSD = await getOrderAmountInUSD(orderData);
+      if (riskLevel.risk === 'medium' && amountUSD <= 299) {
+        tier = 1;
+      } else if (
+        riskLevel.risk === 'high' ||
+        (riskLevel.risk === 'medium' && amountUSD > 300)
+      ) {
+        tier = 2;
+      }
+    } catch (e) {
+      console.warn('Tiering calculation failed:', e.message);
+    }
+    // --- End tiering logic ---
     const orderDoc = {
       ...orderData,
       shop,
@@ -124,6 +160,7 @@ async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, 
         txnDetails: orderTxnDetails,
         riskStatusTag: riskLevel.risk === 'high' ? 'FG_HighRisk' : riskLevel.risk === 'medium' ? 'FG_MediumRisk' : 'FG_LowRisk',
         verificationStatusTag: 'FG_VerificationPending',
+        ...(tier && { tier }),
       },
       receivedAt: new Date(),
     };

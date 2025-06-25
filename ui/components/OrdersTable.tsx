@@ -94,6 +94,7 @@ export default function OrdersTable({
             <th className="p-4 text-lg text-black font-medium">
               Reason for Flag
             </th>
+            <th className="p-4 text-lg text-black font-medium">Tier</th>
             <th className="p-4 text-lg text-black font-medium">Verification</th>
           </tr>
         </thead>
@@ -149,7 +150,7 @@ export default function OrdersTable({
                     </span>
                   </td>
 
-                  <td className="p-4 max-w-[30vw] leading-relaxed">
+                  <td className="p-4 max-w-[15vw] leading-relaxed">
                     <div>
                       <span className="font-bold text-[#437fc4]">FraudGuard:</span><br />
                       <ul className="list-disc list-inside">
@@ -202,6 +203,11 @@ export default function OrdersTable({
                     </div>
                   </td>
 
+                  <td className="p-4">
+                    <div className={`text-center rounded-md p-1 ${order?.guard?.tier === 1 ? 'bg-amber-200 text-amber-900' : order?.guard?.tier === 2 ? 'bg-orange-200 text-yellow-900' : 'bg-red-200 text-red-900'}`}>
+                      {order?.guard?.tier === 1 ? 'Tier 1' : order?.guard?.tier === 2 ? 'Tier 2' : 'No Tier'}
+                    </div>
+                  </td>
 
                   <td className="p-4">
                     <div
