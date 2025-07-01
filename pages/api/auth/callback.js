@@ -132,6 +132,12 @@ export default async function handler(req, res) {
           callbackUrl: `${process.env.HOST}/api/webhooks/order-cancel`,
         },
       ],
+      ORDERS_PAID: [
+        {
+          deliveryMethod: DeliveryMethod.Http,
+          callbackUrl: `${process.env.HOST}/api/webhooks/order-paid`,
+        },
+      ],
       APP_SUBSCRIPTIONS_UPDATE: [
         {
           deliveryMethod: DeliveryMethod.Http,
