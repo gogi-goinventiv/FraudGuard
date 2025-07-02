@@ -11,6 +11,7 @@ export default function Home() {
   const { shop, host } = router.query;
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingRequired, setOnboardingRequired] = useState(false);
+  const [isLifetimeFree, setIsLifetimeFree] = useState<boolean | null>(null);
 
   const MIN_LOADING_TIME = 1000;
 
@@ -22,6 +23,23 @@ export default function Home() {
 
   useEffect(() => {
     if (!shop) return;
+
+    // Check if shop is lifetime free
+    fetch(`/api/shop/is-lifetime-free?shop=${shop}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.lifetimeFree) {
+          setIsLifetimeFree(true);
+          setIsLoading(false);
+        } else {
+          setIsLifetimeFree(false);
+        }
+      })
+      .catch(() => setIsLifetimeFree(false));
+  }, [shop]);
+
+  useEffect(() => {
+    if (!shop || isLifetimeFree) return;
 
     // Handle billing redirect if required
     if (router.query.billingRequired === '1' && router.query.billingUrl) {
@@ -80,7 +98,11 @@ export default function Home() {
     };
 
     checkOnboardingStatus();
-  }, [shop, host]);
+  }, [shop, host, isLifetimeFree]);
+
+  if (isLifetimeFree) {
+    return <DashboardPage onboardingRequired={onboardingRequired} />;
+  }
 
   if (router.query.billingRequired === '1') {
     return (
@@ -94,6 +116,6 @@ export default function Home() {
     );
   }
 
-  if (isLoading) return <SkeletonLoader />;
+  if (isLoading || isLifetimeFree === null) return <SkeletonLoader />;
   return <DashboardPage onboardingRequired={onboardingRequired} />;
 }
