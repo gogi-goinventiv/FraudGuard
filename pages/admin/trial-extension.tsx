@@ -64,6 +64,7 @@ const AdminTrialExtension = () => {
   const [lifetimeSuccess, setLifetimeSuccess] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [subUpdateStatus, setSubUpdateStatus] = useState<'pending' | 'applied' | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -213,7 +214,15 @@ const AdminTrialExtension = () => {
       if (data.error) {
         setProcessError(data.error);
       } else if (data.confirmationUrl) {
-        setConfirmationUrl(data.confirmationUrl);
+        await fetch('/api/shop/subscription-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            shop: `${selectedMerchant.db}.myshopify.com`,
+            new_subscription_url: data.confirmationUrl
+          })
+        });
+        setSubUpdateStatus('pending');
         await logAction(noActiveSub ? 'Create Plan' : 'Extend Trial', `Trial days: ${extensionDays}, Price: ${customPrice || price}, Interval: ${customInterval || interval}`);
       }
     } catch (err) {
@@ -276,6 +285,35 @@ const AdminTrialExtension = () => {
     }
     return { label: key.charAt(0).toUpperCase() + key.slice(1), value };
   }
+
+  // Helper to fetch applied status for subscription update
+  const fetchSubscriptionUpdateStatus = async (shop: string) => {
+    try {
+      const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data && typeof data.applied === 'boolean') {
+        return data.applied ? 'applied' : 'pending';
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Fetch applied status when merchant changes
+  useEffect(() => {
+    if (!selectedMerchant) {
+      setSubUpdateStatus(null);
+      return;
+    }
+    fetchSubscriptionUpdateStatus(`${selectedMerchant.db}.myshopify.com`).then(setSubUpdateStatus);
+  }, [selectedMerchant]);
+
+  // Find the first (topmost) relevant log index
+  const firstRelevantLogIndex = logs
+    .map((log, idx) => (log.action === 'Extend Trial' || log.action === 'Create Plan') ? idx : -1)
+    .find(idx => idx !== -1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 py-8 px-2 flex flex-col items-center">
@@ -421,11 +459,8 @@ const AdminTrialExtension = () => {
               </button>
             )}
             {processError && <div className="text-red-500 text-center mt-2">{processError}</div>}
-            {confirmationUrl && (
-              <div className="text-center mt-4">
-                <span className="font-medium">Complete your subscription: </span>
-                <a href={confirmationUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">{confirmationUrl}</a>
-              </div>
+            {subUpdateStatus === 'pending' && (
+              <div className="text-yellow-600 text-center mt-2">Subscription update pending merchant confirmation.</div>
             )}
             {lifetimeSuccess && <div className="text-green-600 text-center mt-2">Shop is now lifetime free!</div>}
           </SectionCard>
@@ -439,9 +474,10 @@ const AdminTrialExtension = () => {
             <div className="text-gray-400 text-center mt-8">No history yet for this merchant.</div>
           )}
           <ul className="space-y-4">
-            {logs.map(log => {
+            {logs.map((log, idx) => {
               const detailsObj = parseDetails(log.details || '');
               const meta = getActionMeta(log.action);
+              const showApplied = log.action === 'Extend Trial' || log.action === 'Create Plan';
               return (
                 <li key={log._id} className="flex items-center gap-4 bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100">
                   <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-white text-2xl shadow border border-blue-100">
@@ -450,7 +486,13 @@ const AdminTrialExtension = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-gray-900 text-base">{meta.title}</span>
-                      <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold ${meta.badgeColor}`}>{meta.badge}</span>
+                      {showApplied && idx === firstRelevantLogIndex && subUpdateStatus ? (
+                        <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold ${subUpdateStatus === 'applied' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {subUpdateStatus === 'applied' ? 'Applied' : 'Pending'}
+                        </span>
+                      ) : (
+                        <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold ${meta.badgeColor}`}>{meta.badge}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
                       <span className="inline-flex items-center gap-1"><span aria-hidden>👤</span> Admin</span>

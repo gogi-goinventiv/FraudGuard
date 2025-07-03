@@ -47,6 +47,8 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
     riskStatsLoaded: false
   });
 
+  const [pendingPlan, setPendingPlan] = useState<{ url: string; applied: boolean } | null>(null);
+
   const getManualCaptureStatus = async () => {
     try {
       const response = await fetch(`/api/shop/onboarding?shop=${shop}`);
@@ -246,6 +248,32 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
     }
   };
 
+  // Poll for pending plan approval
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    const fetchPendingPlan = async () => {
+      if (!shop) return;
+      try {
+        const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
+        if (!res.ok) {
+          setPendingPlan(null);
+          return;
+        }
+        const data = await res.json();
+        if (data && data.new_subscription_url && data.applied === false) {
+          setPendingPlan({ url: data.new_subscription_url, applied: false });
+        } else {
+          setPendingPlan(null);
+        }
+      } catch {
+        setPendingPlan(null);
+      }
+    };
+    fetchPendingPlan();
+    intervalId = setInterval(fetchPendingPlan, 30000);
+    return () => clearInterval(intervalId);
+  }, [shop]);
+
   // Loading content component (to be used within the layout)
   const LoadingContent = () => (
     <div className="flex-1 p-6 flex items-center justify-center">
@@ -268,6 +296,18 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
 
   return (
     <>
+      {/* Pending plan approval banner */}
+      {pendingPlan && !pendingPlan.applied && (
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl bg-blue-100 border border-blue-300 text-blue-900 px-4 py-3 rounded-b-lg flex items-center justify-between shadow-lg animate-fade-in">
+          <span className="font-semibold">A new plan is pending your approval.</span>
+          <button
+            className="ml-4 px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-900 transition-colors font-semibold"
+            onClick={() => window.open(pendingPlan.url, '_blank')}
+          >
+            Approve Now
+          </button>
+        </div>
+      )}
       {
         !manualCaptureWarning && (
           <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-5 min-h-10 w-[90vw] sm:w-[70vw] md:w-[60vw] lg:w-[40vw] rounded-lg bg-amber-200 flex items-center justify-center px-4 text-center">

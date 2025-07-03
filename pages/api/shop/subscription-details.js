@@ -71,7 +71,7 @@ export default async function handler(req, res) {
       `;
       const variables = {
         name: plan,
-        returnUrl: `${process.env.HOST}/?shop=${session.shop}`,
+        returnUrl: `${process.env.HOST}/subscription-callback?shop=${session.shop}`,
         test: false,
         trialDays,
         lineItems: [
