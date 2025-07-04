@@ -95,7 +95,7 @@ export default function Home() {
     checkOnboardingStatus();
   }, [shop, host, isLifetimeFree]);
 
-  if (router.query.billingRequired === '1' && !isLifetimeFree) {
+  if (router.query.billingRequired === '1' && isLifetimeFree === false) {
     return (
       <div style={{ textAlign: 'center', marginTop: '50px' }}>
         <h1>Subscription Required</h1>
