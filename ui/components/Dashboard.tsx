@@ -47,6 +47,9 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
     riskStatsLoaded: false
   });
 
+  const [subscriptionUpdate, setSubscriptionUpdate] = useState<any>(null);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+
   const getManualCaptureStatus = async () => {
     try {
       const response = await fetch(`/api/shop/onboarding?shop=${shop}`);
@@ -105,6 +108,23 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
     }
   }
 
+  const fetchSubscriptionUpdate = async () => {
+    try {
+      const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
+      const data = await res.json();
+      if (data && data.length > 0 && data[0].applied === false) {
+        setSubscriptionUpdate(data[0]);
+        setShowApprovalModal(true);
+      } else {
+        setSubscriptionUpdate(null);
+        setShowApprovalModal(false);
+      }
+    } catch (error) {
+      setSubscriptionUpdate(null);
+      setShowApprovalModal(false);
+    }
+  };
+
   const fetchRiskStats = async () => {
     try {
       const riskPreventedRes = await fetch(`/api/get-risk-stats?shop=${shop}&id=risk-prevented`);
@@ -129,10 +149,10 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
 
   const refreshOrders = useCallback(async () => {
     if (!shop) return;
-
     try {
       await fetchOrders();
       await fetchRiskStats();
+      await fetchSubscriptionUpdate();
     } catch (error) {
       console.error("Error refreshing data:", error);
     }
@@ -268,6 +288,38 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
 
   return (
     <>
+      {showApprovalModal && subscriptionUpdate && (
+        <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white p-6 rounded shadow-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-2">Approval Pending</h2>
+            <p className="mb-4">
+              A subscription update for <b>{subscriptionUpdate.name}</b> is pending approval.
+            </p>
+            <a
+              href={subscriptionUpdate.redirectUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block mb-4 text-blue-600 underline"
+            >
+              Go to Shopify Approval Page
+            </a>
+            <button
+              className="bg-green-600 text-white px-4 py-2 rounded"
+              onClick={async () => {
+                await fetch('/api/shop/subscription-update', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ shop, id: subscriptionUpdate.id }),
+                });
+                setShowApprovalModal(false);
+                await fetchSubscriptionUpdate();
+              }}
+            >
+              Mark as Approved
+            </button>
+          </div>
+        </div>
+      )}
       {
         !manualCaptureWarning && (
           <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-5 min-h-10 w-[90vw] sm:w-[70vw] md:w-[60vw] lg:w-[40vw] rounded-lg bg-amber-200 flex items-center justify-center px-4 text-center">

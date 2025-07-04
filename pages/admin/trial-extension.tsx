@@ -63,6 +63,7 @@ const AdminTrialExtension = () => {
   const [customInterval, setCustomInterval] = useState('EVERY_30_DAYS');
   const [lifetimeFree, setLifetimeFree] = useState(false);
   const [lifetimeSuccess, setLifetimeSuccess] = useState(false);
+  const [endingLifetime, setEndingLifetime] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [planExtensionMessage, setPlanExtensionMessage] = useState('');
@@ -194,6 +195,29 @@ const AdminTrialExtension = () => {
   // Clear lifetime success message on merchant or input changes
   useEffect(() => { setLifetimeSuccess(false); }, [selectedMerchant, lifetimeFree, extensionDays, customPrice, customInterval]);
 
+  // Add effect to check lifetime free status on merchant selection
+  const checkLifetimeFree = async (shop: string | null) => {
+    if (!shop) {
+      setLifetimeFree(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/shop/is-lifetime-free?shop=${shop}`);
+      const data = await res.json();
+      setLifetimeFree(!!data.lifetimeFree);
+    } catch {
+      setLifetimeFree(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedMerchant) {
+      setLifetimeFree(false);
+      return;
+    }
+    checkLifetimeFree(`${selectedMerchant.db}.myshopify.com`);
+  }, [selectedMerchant]);
+
   const handleExtendTrial = async () => {
     if (!selectedMerchant || !extensionDays) return;
     setProcessing(true);
@@ -216,7 +240,7 @@ const AdminTrialExtension = () => {
         setProcessError(data.error);
       } else if (data.confirmationUrl) {
         setConfirmationUrl(data.confirmationUrl);
-        toast.success('Trial extended successfully. Please confirm the extension in the Shopify admin.');
+        toast.success('Trial extended successfully. Waiting for merchant to approve.');
         await logAction(noActiveSub ? 'Create Plan' : 'Extend Trial', `Trial days: ${extensionDays}, Price: ${customPrice || price}, Interval: ${customInterval || interval}`);
       }
     } catch (err) {
@@ -241,6 +265,7 @@ const AdminTrialExtension = () => {
       if (data.success) {
         setLifetimeSuccess(true);
         await logAction('Set Lifetime Free', 'Shop marked as lifetime free');
+        await checkLifetimeFree(`${selectedMerchant.db}.myshopify.com`);
       } else {
         setProcessError(data.error || 'Failed to set as lifetime free.');
       }
@@ -248,6 +273,33 @@ const AdminTrialExtension = () => {
       setProcessError('Failed to set as lifetime free.');
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleEndLifetimeFree = async () => {
+    if (!selectedMerchant) return;
+    setEndingLifetime(true);
+    setProcessError(null);
+    setLifetimeSuccess(false);
+    try {
+      const res = await fetch('/api/shop/lifetime-free', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shop: `${selectedMerchant.db}.myshopify.com` })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifetimeSuccess(false);
+        toast.success('Lifetime free status ended. Merchant can now be billed again.');
+        await logAction('End Lifetime Free', 'Shop lifetime free status removed');
+        await checkLifetimeFree(`${selectedMerchant.db}.myshopify.com`);
+      } else {
+        setProcessError(data.error || 'Failed to end lifetime free.');
+      }
+    } catch (err) {
+      setProcessError('Failed to end lifetime free.');
+    } finally {
+      setEndingLifetime(false);
     }
   };
 
@@ -353,12 +405,29 @@ const AdminTrialExtension = () => {
                 type="checkbox"
                 id="lifetimeFree"
                 checked={lifetimeFree}
-                onChange={e => setLifetimeFree(e.target.checked)}
-                disabled={!selectedMerchant || subLoading || !!subError || processing}
+                disabled
               />
-              <label htmlFor="lifetimeFree" className="text-gray-700 font-medium">Lifetime Free</label>
-              <span className="text-xs text-gray-400" title="Lifetime free disables all billing for this merchant.">ⓘ</span>
+              <label htmlFor="lifetimeFree" className="text-gray-700 font-medium">Lifetime Free (read-only)</label>
+              <span className="text-xs text-gray-400" title="Lifetime free disables all billing for this merchant. Status is managed by the buttons below.">ⓘ</span>
             </div>
+            {lifetimeFree && (
+              <button
+                className="w-full py-2 mt-2 bg-red-600 text-white rounded-lg hover:bg-red-800 transition-colors text-lg font-semibold shadow-sm disabled:opacity-60"
+                disabled={!selectedMerchant || subLoading || !!subError || processing || endingLifetime}
+                onClick={handleEndLifetimeFree}
+              >
+                {endingLifetime ? 'Ending Lifetime Free...' : 'End Lifetime Free'}
+              </button>
+            )}
+            {!lifetimeFree && (
+              <button
+                className="w-full py-2 mt-2 bg-green-700 text-white rounded-lg hover:bg-green-900 transition-colors text-lg font-semibold shadow-sm disabled:opacity-60"
+                disabled={!selectedMerchant || subLoading || !!subError || processing || endingLifetime}
+                onClick={handleSetLifetimeFree}
+              >
+                {processing ? 'Processing...' : 'Set as Lifetime Free'}
+              </button>
+            )}
             {!lifetimeFree && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -414,15 +483,6 @@ const AdminTrialExtension = () => {
                   {processing ? 'Processing...' : noActiveSub ? 'Create Plan' : 'Extend Trial'}
                 </button>
               </>
-            )}
-            {lifetimeFree && (
-              <button
-                className="w-full py-2 mt-4 bg-green-700 text-white rounded-lg hover:bg-green-900 transition-colors text-lg font-semibold shadow-sm disabled:opacity-60"
-                disabled={!selectedMerchant || subLoading || !!subError || processing}
-                onClick={handleSetLifetimeFree}
-              >
-                {processing ? 'Processing...' : 'Set as Lifetime Free'}
-              </button>
             )}
             {processError && <div className="text-red-500 text-center mt-2">{processError}</div>}
             {/* {
