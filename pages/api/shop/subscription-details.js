@@ -1,6 +1,7 @@
 import sessionHandler from "../utils/sessionHandler";
 import { getCurrentSubscriptions, cancelSubscription } from '../../../lib/billingMiddleware';
 import { shopify } from '../../../lib/shopify';
+import clientPromise from "../../../lib/mongo";
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -71,7 +72,7 @@ export default async function handler(req, res) {
       `;
       const variables = {
         name: plan,
-        returnUrl: `${process.env.HOST}/?shop=${session.shop}`,
+        returnUrl: `https://admin.shopify.com/store/${shop.split('.')[0]}/apps/${process.env.NEXT_PUBLIC_APP_NAME}`,
         test: false,
         trialDays,
         lineItems: [
@@ -91,7 +92,30 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: errors[0].message });
       }
       const confirmationUrl = response.data.appSubscriptionCreate.confirmationUrl;
-      return res.status(200).json({ confirmationUrl });
+
+      // Store the subscription details in MongoDB
+      const _client = await clientPromise;
+      const db = _client.db(shop.split('.')[0]);
+      const collection = db.collection('subscription-update');
+
+      const subscriptionDetails = {
+        id: response.data.appSubscriptionCreate.appSubscription.id,
+        name: response.data.appSubscriptionCreate.appSubscription.name,
+        status: response.data.appSubscriptionCreate.appSubscription.status,
+        createdAt: response.data.appSubscriptionCreate.appSubscription.createdAt,
+        trialDays: response.data.appSubscriptionCreate.appSubscription.trialDays,
+        currentPeriodEnd: response.data.appSubscriptionCreate.appSubscription.currentPeriodEnd,
+        redirectUrl: confirmationUrl,
+        applied: false
+      };
+
+      const result = await collection.insertOne(subscriptionDetails, { upsert: true });
+
+      if (!result.acknowledged) {
+        return res.status(500).json({ error: 'Failed to store subscription details' });
+      }
+
+      return res.status(200).json({ success: true, confirmationUrl: confirmationUrl, message: 'Subscription extended. Waiting for merchant approval.' });
     } catch (error) {
       console.error('Error extending subscription:', error);
       return res.status(500).json({ error: 'Failed to extend subscription', details: error.message });

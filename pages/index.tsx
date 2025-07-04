@@ -28,21 +28,16 @@ export default function Home() {
     fetch(`/api/shop/is-lifetime-free?shop=${shop}`)
       .then(res => res.json())
       .then(data => {
-        if (data.lifetimeFree) {
-          setIsLifetimeFree(true);
-          setIsLoading(false);
-        } else {
-          setIsLifetimeFree(false);
-        }
+        setIsLifetimeFree(data.lifetimeFree);
       })
       .catch(() => setIsLifetimeFree(false));
   }, [shop]);
 
   useEffect(() => {
-    if (!shop || isLifetimeFree) return;
+    if (!shop || isLifetimeFree === null) return;
 
-    // Handle billing redirect if required
-    if (router.query.billingRequired === '1' && router.query.billingUrl) {
+    // Handle billing redirect if required (but not for lifetime free users)
+    if (!isLifetimeFree && router.query.billingRequired === '1' && router.query.billingUrl) {
       const redirect = Redirect.create(app);
       redirect.dispatch(Redirect.Action.REMOTE, router.query.billingUrl as string);
       return;
@@ -100,11 +95,7 @@ export default function Home() {
     checkOnboardingStatus();
   }, [shop, host, isLifetimeFree]);
 
-  if (isLifetimeFree) {
-    return <DashboardPage onboardingRequired={onboardingRequired} />;
-  }
-
-  if (router.query.billingRequired === '1') {
+  if (router.query.billingRequired === '1' && !isLifetimeFree) {
     return (
       <div style={{ textAlign: 'center', marginTop: '50px' }}>
         <h1>Subscription Required</h1>

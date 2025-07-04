@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { toast, ToastContainer } from 'react-toastify';
 
 const CONCURRENCY_LIMIT = 5;
 
@@ -64,6 +65,7 @@ const AdminTrialExtension = () => {
   const [lifetimeSuccess, setLifetimeSuccess] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [planExtensionMessage, setPlanExtensionMessage] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -214,6 +216,7 @@ const AdminTrialExtension = () => {
         setProcessError(data.error);
       } else if (data.confirmationUrl) {
         setConfirmationUrl(data.confirmationUrl);
+        toast.success('Trial extended successfully. Please confirm the extension in the Shopify admin.');
         await logAction(noActiveSub ? 'Create Plan' : 'Extend Trial', `Trial days: ${extensionDays}, Price: ${customPrice || price}, Interval: ${customInterval || interval}`);
       }
     } catch (err) {
@@ -279,6 +282,7 @@ const AdminTrialExtension = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 py-8 px-2 flex flex-col items-center">
+      <ToastContainer />
       <div className="flex flex-col items-center w-full mb-8">
         <img src="/logo.png" alt="FraudGuard Logo" className="w-24 h-24 mb-2 drop-shadow" />
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight text-center">Merchant Trial & Subscription Management</h1>
@@ -421,12 +425,11 @@ const AdminTrialExtension = () => {
               </button>
             )}
             {processError && <div className="text-red-500 text-center mt-2">{processError}</div>}
-            {confirmationUrl && (
-              <div className="text-center mt-4">
-                <span className="font-medium">Complete your subscription: </span>
-                <a href={confirmationUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">{confirmationUrl}</a>
-              </div>
-            )}
+            {/* {
+              planExtensionMessage && (
+                <div className="text-green-600 text-center mt-2">{planExtensionMessage}</div>
+              )
+            } */}
             {lifetimeSuccess && <div className="text-green-600 text-center mt-2">Shop is now lifetime free!</div>}
           </SectionCard>
         </div>
