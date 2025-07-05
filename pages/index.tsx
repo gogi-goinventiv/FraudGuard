@@ -13,6 +13,7 @@ export default function Home() {
   const [onboardingRequired, setOnboardingRequired] = useState(false);
   const [isLifetimeFree, setIsLifetimeFree] = useState<boolean | null>(null);
   const [subscriptionUpdate, setSubscriptionUpdate] = useState<any>(null);
+  const [justProcessedUpdate, setJustProcessedUpdate] = useState(false);
 
   const MIN_LOADING_TIME = 1000;
 
@@ -22,76 +23,71 @@ export default function Home() {
     forceRedirect: true,
   });
 
-  const fetchSubscriptionUpdate = async () => {
-    try {
-      const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
-      const data = await res.json();
-      console.log('Index page - Subscription update data:', data);
-      
-      if (data && data.length > 0 && data[0].applied === false) {
-        console.log('Index page - Found pending subscription update:', data[0]);
-        console.log('Index page - Redirect URL:', data[0].redirectUrl);
-        setSubscriptionUpdate(data[0]);
-      } else {
-        console.log('Index page - No pending subscription updates found');
-        setSubscriptionUpdate(null);
-      }
-    } catch (error) {
-      console.error('Index page - Error fetching subscription update:', error);
-      setSubscriptionUpdate(null);
-    }
-  };
 
-  const checkActiveSubscription = async () => {
-    try {
-      const res = await fetch(`/api/shop/subscription-details?shop=${shop}`);
-      const data = await res.json();
-      console.log('Index page - Subscription details:', data);
-      
-      if (data.subscriptions && data.subscriptions.length === 0) {
-        console.log('Index page - No active subscriptions found, redirecting to generic plan');
-        // Create generic subscription plan
-        const createRes = await fetch('/api/shop/subscription-details', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            shop, 
-            extendDays: 14, // Default trial period
-            price: process.env.SHOPIFY_BILLING_AMOUNT || '19.99',
-            interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
-          }),
-        });
-        
-        const createData = await createRes.json();
-        if (createData.confirmationUrl) {
-          console.log('Index page - Redirecting to subscription confirmation:', createData.confirmationUrl);
-          const redirect = Redirect.create(app);
-          redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
-        }
-      }
-    } catch (error) {
-      console.error('Index page - Error checking subscription details:', error);
-    }
-  };
 
   useEffect(() => {
     if (!shop) return;
 
-    // Check if shop is lifetime free
-    fetch(`/api/shop/is-lifetime-free?shop=${shop}`)
-      .then(res => res.json())
-      .then(data => {
-        setIsLifetimeFree(data.lifetimeFree);
-      })
-      .catch(() => setIsLifetimeFree(false));
+    const initializeApp = async () => {
+      try {
+        // Step 1: Check if shop is lifetime free
+        const lifetimeFreeRes = await fetch(`/api/shop/is-lifetime-free?shop=${shop}`);
+        const lifetimeFreeData = await lifetimeFreeRes.json();
+        const isLifetimeFreeShop = lifetimeFreeData.lifetimeFree;
+        setIsLifetimeFree(isLifetimeFreeShop);
+        
+        // If lifetime free, skip all other checks
+        if (isLifetimeFreeShop) {
+          console.log('Shop is lifetime free, skipping subscription checks');
+          return;
+        }
 
-    fetchSubscriptionUpdate();
-    
-    // Check for active subscription (only for non-lifetime-free users)
-    if (isLifetimeFree === false) {
-      checkActiveSubscription();
-    }
-  }, [shop, isLifetimeFree]);
+        // Step 2: Check for subscription updates
+        const updateRes = await fetch(`/api/shop/subscription-update?shop=${shop}`);
+        const updateData = await updateRes.json();
+        console.log('Index page - Subscription update data:', updateData);
+        
+        if (updateData && updateData.length > 0 && updateData[0].applied === false) {
+          console.log('Index page - Found pending subscription update:', updateData[0]);
+          setSubscriptionUpdate(updateData[0]);
+          return; // Skip other checks if there's a pending update
+        }
+
+        // Step 3: Check for active subscriptions
+        const subscriptionRes = await fetch(`/api/shop/subscription-details?shop=${shop}`);
+        const subscriptionData = await subscriptionRes.json();
+        console.log('Index page - Subscription details:', subscriptionData);
+        
+        if (subscriptionData.subscriptions && subscriptionData.subscriptions.length === 0) {
+          console.log('Index page - No active subscriptions found, redirecting to generic plan');
+          // Create generic subscription plan
+          const createRes = await fetch('/api/shop/subscription-details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              shop, 
+              extendDays: 14, // Default trial period
+              price: process.env.SHOPIFY_BILLING_AMOUNT || '19.99',
+              interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
+            }),
+          });
+          
+          const createData = await createRes.json();
+          if (createData.confirmationUrl) {
+            console.log('Index page - Redirecting to subscription confirmation:', createData.confirmationUrl);
+            const redirect = Redirect.create(app);
+            redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
+          }
+        } else {
+          console.log('Index page - Active subscription found, proceeding normally');
+        }
+      } catch (error) {
+        console.error('Index page - Error during initialization:', error);
+      }
+    };
+
+    initializeApp();
+  }, [shop]);
 
   useEffect(() => {
     const handleSubscriptionUpdate = async () => {
@@ -125,8 +121,11 @@ export default function Home() {
           body: JSON.stringify({ shop, id: subscriptionUpdate.id }),
         });
         
-        // Check for active subscription after update
-        await checkActiveSubscription();
+        // Set flag to prevent immediate subscription check
+        setJustProcessedUpdate(true);
+        
+        // Reset flag after 30 seconds to allow normal checks again
+        setTimeout(() => setJustProcessedUpdate(false), 30000);
         return;
       }
 
