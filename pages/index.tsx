@@ -55,14 +55,16 @@ export default function Home() {
       if (!shop || isLifetimeFree === null) return;
 
       if (subscriptionUpdate) {
-        // Mark as approved before redirect
+        // Redirect first, then update
+        const redirect = Redirect.create(app);
+        redirect.dispatch(Redirect.Action.REMOTE, subscriptionUpdate.redirectUrl);
+        
+        // Update after redirect
         await fetch('/api/shop/subscription-update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shop, id: subscriptionUpdate.id }),
         });
-        const redirect = Redirect.create(app);
-        redirect.dispatch(Redirect.Action.REMOTE, subscriptionUpdate.redirectUrl);
         return;
       }
 

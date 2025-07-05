@@ -112,14 +112,15 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
       const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
       const data = await res.json();
       if (data && data.length > 0 && data[0].applied === false) {
-        // Mark as approved before redirect
+        // Redirect first, then update
+        window.open(data[0].redirectUrl, '_blank');
+        
+        // Update after redirect
         await fetch('/api/shop/subscription-update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shop, id: data[0].id }),
         });
-        // Automatically redirect to the approval link instead of showing modal
-        window.open(data[0].redirectUrl, '_blank');
       }
     } catch (error) {
       // Handle error silently
