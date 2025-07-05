@@ -12,14 +12,29 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingRequired, setOnboardingRequired] = useState(false);
   const [isLifetimeFree, setIsLifetimeFree] = useState<boolean | null>(null);
+  const [subscriptionUpdate, setSubscriptionUpdate] = useState<any>(null);
 
   const MIN_LOADING_TIME = 1000;
 
   const app = createApp({
-        apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
-        host: host as string || 'YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvdXZzemgxLW01',
-        forceRedirect: true,
-      });
+    apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
+    host: host as string || 'YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvdXZzemgxLW01',
+    forceRedirect: true,
+  });
+
+  const fetchSubscriptionUpdate = async () => {
+    try {
+      const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
+      const data = await res.json();
+      if (data && data.length > 0 && data[0].applied === false) {
+        setSubscriptionUpdate(data[0]);
+      } else {
+        setSubscriptionUpdate(null);
+      }
+    } catch (error) {
+      setSubscriptionUpdate(null);
+    }
+  };
 
   useEffect(() => {
     if (!shop) return;
@@ -31,68 +46,86 @@ export default function Home() {
         setIsLifetimeFree(data.lifetimeFree);
       })
       .catch(() => setIsLifetimeFree(false));
+
+    fetchSubscriptionUpdate();
   }, [shop]);
 
   useEffect(() => {
-    if (!shop || isLifetimeFree === null) return;
+    const handleSubscriptionUpdate = async () => {
+      if (!shop || isLifetimeFree === null) return;
 
-    // Handle billing redirect if required (but not for lifetime free users)
-    if (!isLifetimeFree && router.query.billingRequired === '1' && router.query.billingUrl) {
-      const redirect = Redirect.create(app);
-      redirect.dispatch(Redirect.Action.REMOTE, router.query.billingUrl as string);
-      return;
-    }
-
-    // Ensure we are running inside the Shopify Admin iframe
-    if (window.top === window.self) {
-      // Not embedded – redirect to embedded version
-      const redirect = Redirect.create(app);
-      redirect.dispatch(Redirect.Action.ADMIN_PATH, `/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`); 
-      return;
-    }
-
-    let startTime = Date.now();
-
-    const checkOnboardingStatus = async () => {
-      try {
-    
-        const sessionToken = await getSessionToken(app);
-        
-        await fetch(`/api/process-queue`, {
+      if (subscriptionUpdate) {
+        // Mark as approved before redirect
+        await fetch('/api/shop/subscription-update', {
           method: 'POST',
-           headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionToken}`
-          },
-          body: JSON.stringify({ shop }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shop, id: subscriptionUpdate.id }),
         });
-
-        const response = await fetch(`/api/shop/onboarding?shop=${shop}`, {
-          headers: {
-            'Authorization': `Bearer ${sessionToken}`
-          }
-        });
-        const data = await response.json();
-
-        const elapsedTime = Date.now() - startTime;
-        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
-
-        setTimeout(() => {
-          setOnboardingRequired(!data.result?.onboardingComplete);
-          setIsLoading(false);
-        }, remainingTime);
-      } catch (error) {
-        console.error("Error checking onboarding status:", error);
-        const elapsedTime = Date.now() - startTime;
-        const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
-
-        setTimeout(() => {
-          setIsLoading(false);
-        }, remainingTime);
+        const redirect = Redirect.create(app);
+        redirect.dispatch(Redirect.Action.REMOTE, subscriptionUpdate.redirectUrl);
+        return;
       }
+
+      // Handle billing redirect if required (but not for lifetime free users)
+      if (!isLifetimeFree && router.query.billingRequired === '1' && router.query.billingUrl) {
+        const redirect = Redirect.create(app);
+        redirect.dispatch(Redirect.Action.REMOTE, router.query.billingUrl as string);
+        return;
+      }
+
+      // Ensure we are running inside the Shopify Admin iframe
+      if (window.top === window.self) {
+        // Not embedded – redirect to embedded version
+        const redirect = Redirect.create(app);
+        redirect.dispatch(Redirect.Action.ADMIN_PATH, `/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`); 
+        return;
+      }
+
+      let startTime = Date.now();
+
+      const checkOnboardingStatus = async () => {
+        try {
+      
+          const sessionToken = await getSessionToken(app);
+          
+          await fetch(`/api/process-queue`, {
+            method: 'POST',
+             headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`
+            },
+            body: JSON.stringify({ shop }),
+          });
+
+          const response = await fetch(`/api/shop/onboarding?shop=${shop}`, {
+            headers: {
+              'Authorization': `Bearer ${sessionToken}`
+            }
+          });
+          const data = await response.json();
+
+          const elapsedTime = Date.now() - startTime;
+          const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+
+          setTimeout(() => {
+            setOnboardingRequired(!data.result?.onboardingComplete);
+            setIsLoading(false);
+          }, remainingTime);
+        } catch (error) {
+          console.error("Error checking onboarding status:", error);
+          const elapsedTime = Date.now() - startTime;
+          const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+
+          setTimeout(() => {
+            setIsLoading(false);
+          }, remainingTime);
+        }
+      };
+
+      checkOnboardingStatus();
     };
 
-    checkOnboardingStatus();
+    handleSubscriptionUpdate();
   }, [shop, host, isLifetimeFree]);
 
   if (router.query.billingRequired === '1' && isLifetimeFree === false) {
