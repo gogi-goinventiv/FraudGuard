@@ -42,6 +42,38 @@ export default function Home() {
     }
   };
 
+  const checkActiveSubscription = async () => {
+    try {
+      const res = await fetch(`/api/shop/subscription-details?shop=${shop}`);
+      const data = await res.json();
+      console.log('Index page - Subscription details:', data);
+      
+      if (data.subscriptions && data.subscriptions.length === 0) {
+        console.log('Index page - No active subscriptions found, redirecting to generic plan');
+        // Create generic subscription plan
+        const createRes = await fetch('/api/shop/subscription-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            shop, 
+            extendDays: 14, // Default trial period
+            price: process.env.SHOPIFY_BILLING_AMOUNT || '29.99',
+            interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
+          }),
+        });
+        
+        const createData = await createRes.json();
+        if (createData.confirmationUrl) {
+          console.log('Index page - Redirecting to subscription confirmation:', createData.confirmationUrl);
+          const redirect = Redirect.create(app);
+          redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Index page - Error checking subscription details:', error);
+    }
+  };
+
   useEffect(() => {
     if (!shop) return;
 
@@ -54,7 +86,12 @@ export default function Home() {
       .catch(() => setIsLifetimeFree(false));
 
     fetchSubscriptionUpdate();
-  }, [shop]);
+    
+    // Check for active subscription (only for non-lifetime-free users)
+    if (isLifetimeFree === false) {
+      checkActiveSubscription();
+    }
+  }, [shop, isLifetimeFree]);
 
   useEffect(() => {
     const handleSubscriptionUpdate = async () => {

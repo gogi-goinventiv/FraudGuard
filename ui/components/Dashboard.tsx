@@ -162,6 +162,38 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
     }
   };
 
+  const checkActiveSubscription = async () => {
+    try {
+      const res = await fetch(`/api/shop/subscription-details?shop=${shop}`);
+      const data = await res.json();
+      console.log('Dashboard - Subscription details:', data);
+      
+      if (data.subscriptions && data.subscriptions.length === 0) {
+        console.log('Dashboard - No active subscriptions found, redirecting to generic plan');
+        // Create generic subscription plan
+        const createRes = await fetch('/api/shop/subscription-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            shop, 
+            extendDays: 14, // Default trial period
+            price: process.env.SHOPIFY_BILLING_AMOUNT || '29.99',
+            interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
+          }),
+        });
+        
+        const createData = await createRes.json();
+        if (createData.confirmationUrl) {
+          console.log('Dashboard - Redirecting to subscription confirmation:', createData.confirmationUrl);
+          const redirect = Redirect.create(app);
+          redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Dashboard - Error checking subscription details:', error);
+    }
+  };
+
   const fetchRiskStats = async () => {
     try {
       const riskPreventedRes = await fetch(`/api/get-risk-stats?shop=${shop}&id=risk-prevented`);
@@ -190,6 +222,8 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
       await fetchOrders();
       await fetchRiskStats();
       await fetchSubscriptionUpdate();
+      // Check for active subscription on refresh
+      await checkActiveSubscription();
     } catch (error) {
       console.error("Error refreshing data:", error);
     }
