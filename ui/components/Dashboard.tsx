@@ -165,51 +165,78 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
         return;
       }
 
+      // Clean up any old subscription data first
+      try {
+        await fetch('/api/shop/cleanup-subscriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shop }),
+        });
+      } catch (cleanupError) {
+        console.error('Dashboard - Error during cleanup:', cleanupError);
+      }
+
       // Step 2: Check for subscription updates
       const updateRes = await fetch(`/api/shop/subscription-update?shop=${shop}`);
       const updateData = await updateRes.json();
       console.log('Dashboard - Subscription update data:', updateData);
       
-      if (updateData && updateData.length > 0 && updateData[0].applied === false) {
-        console.log('Dashboard - Found pending subscription update:', updateData[0]);
+      if (updateData && updateData.length > 0) {
+        const latestUpdate = updateData[0];
         
-        // Redirect first, then update
-        if (updateData[0].redirectUrl) {
-          // Use App Bridge redirect (preferred for embedded apps)
-          try {
-            const redirect = Redirect.create(app);
-            redirect.dispatch(Redirect.Action.REMOTE, updateData[0].redirectUrl);
-          } catch (redirectError) {
-            console.error('App Bridge redirect failed, trying direct redirect:', redirectError);
+        // Check if the update is recent (within last 24 hours) and not applied
+        const updateTime = new Date(latestUpdate.createdAt || latestUpdate._id?.getTimestamp?.() || Date.now());
+        const isRecent = (Date.now() - updateTime.getTime()) < (24 * 60 * 60 * 1000); // 24 hours
+        
+        if (latestUpdate.applied === false && isRecent) {
+          console.log('Dashboard - Found valid pending subscription update:', latestUpdate);
+          
+          // Redirect first, then update
+          if (latestUpdate.redirectUrl) {
+            // Use App Bridge redirect (preferred for embedded apps)
             try {
-              // Fallback: Direct window.location
-              window.location.href = updateData[0].redirectUrl;
-            } catch (directError) {
-              console.error('Direct redirect also failed:', directError);
-              // Final fallback: Create and click a link
-              const link = document.createElement('a');
-              link.href = updateData[0].redirectUrl;
-              link.target = '_blank';
-              link.click();
+              const redirect = Redirect.create(app);
+              redirect.dispatch(Redirect.Action.REMOTE, latestUpdate.redirectUrl);
+            } catch (redirectError) {
+              console.error('App Bridge redirect failed, trying direct redirect:', redirectError);
+              try {
+                // Fallback: Direct window.location
+                window.location.href = latestUpdate.redirectUrl;
+              } catch (directError) {
+                console.error('Direct redirect also failed:', directError);
+                // Final fallback: Create and click a link
+                const link = document.createElement('a');
+                link.href = latestUpdate.redirectUrl;
+                link.target = '_blank';
+                link.click();
+              }
             }
+          } else {
+            console.error('No redirect URL found in subscription update data');
           }
-        } else {
-          console.error('No redirect URL found in subscription update data');
+          
+          // Update after redirect
+          await fetch('/api/shop/subscription-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shop, id: latestUpdate.id }),
+          });
+          
+          // Set flag to prevent immediate subscription check
+          setJustProcessedUpdate(true);
+          
+          // Reset flag after 30 seconds to allow normal checks again
+          setTimeout(() => setJustProcessedUpdate(false), 30000);
+          return; // Skip other checks if there's a valid pending update
+        } else if (!isRecent) {
+          console.log('Dashboard - Found old subscription update, cleaning up...');
+          // Clean up old update
+          await fetch('/api/shop/subscription-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shop, id: latestUpdate.id }),
+          });
         }
-        
-        // Update after redirect
-        await fetch('/api/shop/subscription-update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shop, id: updateData[0].id }),
-        });
-        
-        // Set flag to prevent immediate subscription check
-        setJustProcessedUpdate(true);
-        
-        // Reset flag after 30 seconds to allow normal checks again
-        setTimeout(() => setJustProcessedUpdate(false), 30000);
-        return; // Skip other checks if there's a pending update
       }
 
       // Step 3: Check for active subscriptions
@@ -218,24 +245,41 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
       console.log('Dashboard - Subscription details:', subscriptionData);
       
       if (subscriptionData.subscriptions && subscriptionData.subscriptions.length === 0) {
-        console.log('Dashboard - No active subscriptions found, redirecting to generic plan');
-        // Create generic subscription plan
-        const createRes = await fetch('/api/shop/subscription-details', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            shop, 
-            extendDays: 14, // Default trial period
-            price: process.env.SHOPIFY_BILLING_AMOUNT || '19.99',
-            interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
-          }),
-        });
+        console.log('Dashboard - No active subscriptions found, creating new plan');
         
-        const createData = await createRes.json();
-        if (createData.confirmationUrl) {
-          console.log('Dashboard - Redirecting to subscription confirmation:', createData.confirmationUrl);
-          const redirect = Redirect.create(app);
-          redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
+        try {
+          // Create generic subscription plan
+          const createRes = await fetch('/api/shop/subscription-details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              shop, 
+              extendDays: 14, // Default trial period
+              price: process.env.SHOPIFY_BILLING_AMOUNT || '19.99',
+              interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
+            }),
+          });
+          
+          if (!createRes.ok) {
+            throw new Error(`Failed to create subscription: ${createRes.status}`);
+          }
+          
+          const createData = await createRes.json();
+          
+          if (createData.error) {
+            console.error('Dashboard - Error creating subscription:', createData.error);
+            return; // Don't redirect if there's an error
+          }
+          
+          if (createData.confirmationUrl) {
+            console.log('Dashboard - Redirecting to subscription confirmation:', createData.confirmationUrl);
+            const redirect = Redirect.create(app);
+            redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
+          } else {
+            console.error('Dashboard - No confirmation URL received');
+          }
+        } catch (error) {
+          console.error('Dashboard - Error creating subscription plan:', error);
         }
       } else {
         console.log('Dashboard - Active subscription found, proceeding normally');
