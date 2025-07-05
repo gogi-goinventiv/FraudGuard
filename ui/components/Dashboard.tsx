@@ -8,6 +8,8 @@ import { sendVerificationEmail } from "../../utils/verification";
 import Link from "next/link";
 import RiskStats from "./RiskStats";
 import { ManualCaptureWarningContext } from '../../context/manualCaptureWarning';
+import { createApp } from '@shopify/app-bridge';
+import { Redirect } from '@shopify/app-bridge/actions';
 
 export interface Pagination {
   page: number;
@@ -17,7 +19,14 @@ export interface Pagination {
 
 export default function Dashboard({ onboardingRequired }: { onboardingRequired: boolean }) {
   const router = useRouter();
-  const { shop } = router.query;
+  const { shop, host } = router.query;
+  
+  // Create App Bridge app instance
+  const app = createApp({
+    apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
+    host: host as string || '',
+    forceRedirect: true,
+  });
   const [orders, setOrders] = useState<any[]>([]);
   const [riskStats, setRiskStats] = useState({
     riskPrevented: 0,
@@ -46,8 +55,6 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
     ordersLoaded: false,
     riskStatsLoaded: false
   });
-
-
 
   const getManualCaptureStatus = async () => {
     try {
@@ -119,18 +126,18 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
         
         // Redirect first, then update
         if (data[0].redirectUrl) {
-          // Try multiple redirect methods to ensure it works
+          // Use App Bridge redirect (preferred for embedded apps)
           try {
-            // Method 1: Direct window.location (works in embedded apps)
-            window.location.href = data[0].redirectUrl;
+            const redirect = Redirect.create(app);
+            redirect.dispatch(Redirect.Action.REMOTE, data[0].redirectUrl);
           } catch (redirectError) {
-            console.error('Direct redirect failed, trying window.open:', redirectError);
+            console.error('App Bridge redirect failed, trying direct redirect:', redirectError);
             try {
-              // Method 2: window.open as fallback
-              window.open(data[0].redirectUrl, '_blank');
-            } catch (openError) {
-              console.error('Window.open also failed:', openError);
-              // Method 3: Create and click a link
+              // Fallback: Direct window.location
+              window.location.href = data[0].redirectUrl;
+            } catch (directError) {
+              console.error('Direct redirect also failed:', directError);
+              // Final fallback: Create and click a link
               const link = document.createElement('a');
               link.href = data[0].redirectUrl;
               link.target = '_blank';
