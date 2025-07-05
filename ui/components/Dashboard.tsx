@@ -154,6 +154,9 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shop, id: data[0].id }),
         });
+        
+        // Check for active subscription after update
+        await checkActiveSubscription();
       } else {
         console.log('No pending subscription updates found');
       }

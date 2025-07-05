@@ -124,6 +124,9 @@ export default function Home() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shop, id: subscriptionUpdate.id }),
         });
+        
+        // Check for active subscription after update
+        await checkActiveSubscription();
         return;
       }
 
