@@ -111,9 +111,35 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
     try {
       const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
       const data = await res.json();
+      console.log('Subscription update data:', data);
+      
       if (data && data.length > 0 && data[0].applied === false) {
+        console.log('Found pending subscription update:', data[0]);
+        console.log('Redirect URL:', data[0].redirectUrl);
+        
         // Redirect first, then update
-        window.open(data[0].redirectUrl, '_blank');
+        if (data[0].redirectUrl) {
+          // Try multiple redirect methods to ensure it works
+          try {
+            // Method 1: Direct window.location (works in embedded apps)
+            window.location.href = data[0].redirectUrl;
+          } catch (redirectError) {
+            console.error('Direct redirect failed, trying window.open:', redirectError);
+            try {
+              // Method 2: window.open as fallback
+              window.open(data[0].redirectUrl, '_blank');
+            } catch (openError) {
+              console.error('Window.open also failed:', openError);
+              // Method 3: Create and click a link
+              const link = document.createElement('a');
+              link.href = data[0].redirectUrl;
+              link.target = '_blank';
+              link.click();
+            }
+          }
+        } else {
+          console.error('No redirect URL found in subscription update data');
+        }
         
         // Update after redirect
         await fetch('/api/shop/subscription-update', {
@@ -121,9 +147,11 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shop, id: data[0].id }),
         });
+      } else {
+        console.log('No pending subscription updates found');
       }
     } catch (error) {
-      // Handle error silently
+      console.error('Error fetching subscription update:', error);
     }
   };
 

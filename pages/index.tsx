@@ -26,12 +26,18 @@ export default function Home() {
     try {
       const res = await fetch(`/api/shop/subscription-update?shop=${shop}`);
       const data = await res.json();
+      console.log('Index page - Subscription update data:', data);
+      
       if (data && data.length > 0 && data[0].applied === false) {
+        console.log('Index page - Found pending subscription update:', data[0]);
+        console.log('Index page - Redirect URL:', data[0].redirectUrl);
         setSubscriptionUpdate(data[0]);
       } else {
+        console.log('Index page - No pending subscription updates found');
         setSubscriptionUpdate(null);
       }
     } catch (error) {
+      console.error('Index page - Error fetching subscription update:', error);
       setSubscriptionUpdate(null);
     }
   };
@@ -56,8 +62,24 @@ export default function Home() {
 
       if (subscriptionUpdate) {
         // Redirect first, then update
-        const redirect = Redirect.create(app);
-        redirect.dispatch(Redirect.Action.REMOTE, subscriptionUpdate.redirectUrl);
+        try {
+          // Method 1: Use Shopify App Bridge redirect (preferred for embedded apps)
+          const redirect = Redirect.create(app);
+          redirect.dispatch(Redirect.Action.REMOTE, subscriptionUpdate.redirectUrl);
+        } catch (redirectError) {
+          console.error('App Bridge redirect failed, trying direct redirect:', redirectError);
+          try {
+            // Method 2: Direct window.location as fallback
+            window.location.href = subscriptionUpdate.redirectUrl;
+          } catch (directError) {
+            console.error('Direct redirect also failed:', directError);
+            // Method 3: Create and click a link
+            const link = document.createElement('a');
+            link.href = subscriptionUpdate.redirectUrl;
+            link.target = '_blank';
+            link.click();
+          }
+        }
         
         // Update after redirect
         await fetch('/api/shop/subscription-update', {
