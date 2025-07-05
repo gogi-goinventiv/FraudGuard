@@ -57,7 +57,7 @@ export default function Home() {
           body: JSON.stringify({ 
             shop, 
             extendDays: 14, // Default trial period
-            price: process.env.SHOPIFY_BILLING_AMOUNT || '29.99',
+            price: process.env.SHOPIFY_BILLING_AMOUNT || '19.99',
             interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
           }),
         });
