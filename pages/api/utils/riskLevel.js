@@ -51,13 +51,16 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
         // Filter out null, undefined, and empty strings so that we don't check for empty account numbers or third-party payment methods
         const accountNumbersToCheck = orderTxnDetails.filter(txn => !!txn.accountNumber).map(txn => txn.accountNumber);
 
-        const wasFlaggedBefore = await db.collection('orders').findOne({
-            shop,
-            'guard.txnDetails.accountNumber': { $in: accountNumbersToCheck }
-        });
+        let hasBeenUsedBefore = false;
 
-        const hasBeenUsedBefore = !!wasFlaggedBefore;
+        if (accountNumbersToCheck.length > 0) {
+            const wasFlaggedBefore = await db.collection('orders').findOne({
+                shop,
+                'guard.txnDetails.accountNumber': { $in: accountNumbersToCheck }
+            });
 
+            hasBeenUsedBefore = !!wasFlaggedBefore;
+        }
 
         // Rule 1: IP mismatch with billing country
         const { browser_ip } = order || order?.client_details;
