@@ -47,7 +47,9 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
 
         client = await clientPromise;
         const db = client.db(shop.split('.')[0]);
-        const accountNumbersToCheck = orderTxnDetails.map(txn => txn.accountNumber);
+
+        // Filter out null, undefined, and empty strings so that we don't check for empty account numbers or third-party payment methods
+        const accountNumbersToCheck = orderTxnDetails.filter(txn => !!txn.accountNumber).map(txn => txn.accountNumber);
 
         const wasFlaggedBefore = await db.collection('orders').findOne({
             shop,
