@@ -6,10 +6,28 @@ import { updateOrdersOnHold } from "./utils/updateRiskStats";
 import { shopify } from "../../lib/shopify";
 import { removeStatusTags } from "./utils/removeStatusTags";
 
+// GraphQL utility to get order transactions (copied from webhooks/order-create.js)
+async function getOrderTxnDetails(shopifyClient, orderIdGid) {
+  const query = `
+    query GetOrderTransactions($orderId: ID!) {
+      order(id: $orderId) {
+        transactions { id status kind }
+      }
+    }
+  `;
+  try {
+    const response = await shopifyClient.request(query, { variables: { orderId: orderIdGid } });
+    if (response?.data?.order?.transactions) {
+      return response.data.order.transactions;
+    }
+    return [];
+  } catch (error) {
+    return [];
+  }
+}
+
 export default async function handler(req, res) {
-
   const client = await clientPromise;
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -18,51 +36,56 @@ export default async function handler(req, res) {
 
   try {
     const session = await sessionHandler.loadSession(shop);
+    const shopifyClient = new shopify.clients.Graphql({ session });
 
-    // Step 1: Get transactions for the order
-    const txRes = await fetch(
-      `https://${session.shop}/admin/api/2025-04/orders/${orderId}/transactions.json`,
-      {
-        headers: {
-          'X-Shopify-Access-Token': session.accessToken,
-          'Content-Type': 'application/json',
-        },
-      }
+    // Step 1: Get transactions for the order (GraphQL)
+    const transactions = await getOrderTxnDetails(shopifyClient, admin_graphql_api_id);
+    const authorizationTx = transactions.find(
+      (tx) => tx.kind === 'AUTHORIZATION' && tx.status === 'SUCCESS'
     );
-    const txData = await txRes.json();
-
-    console.log('txData:', txData);
-
-    const authorizationTx = txData.transactions.find(
-      (tx) => tx.kind === 'authorization' && tx.status === 'success'
-    );
-
     if (!authorizationTx) {
       return res.status(400).json({ error: 'No successful authorization transaction found' });
     }
 
-    // Step 2: Capture the authorized transaction
-    const captureRes = await fetch(
-      `https://${session.shop}/admin/api/2025-04/orders/${orderId}/transactions.json`,
-      {
-        method: 'POST',
-        headers: {
-          'X-Shopify-Access-Token': session.accessToken,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          transaction: {
-            kind: 'capture',
-            parent_id: authorizationTx.id,
-          },
-        }),
+    // Step 2: Capture the authorized transaction (GraphQL)
+    const mutation = `
+      mutation orderCapture($input: OrderCaptureInput!) {
+        orderCapture(input: $input) {
+          transaction {
+            id
+            kind
+            status
+            amountSet {
+              presentmentMoney {
+                amount
+                currencyCode
+              }
+            }
+            order {
+              id
+              totalCapturable
+              capturable
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
       }
-    );
+    `;
+    const variables = {
+      input: {
+        id: admin_graphql_api_id,
+        parentTransactionId: authorizationTx.id,
+        // amount: orderAmount, // Optional: for partial capture
+      }
+    };
+    const captureRes = await shopifyClient.request(mutation, { variables });
+    const captureData = captureRes?.data?.orderCapture;
 
-    const captureData = await captureRes.json();
-    if (!captureRes.ok) {
-      const errorMessage = captureData?.errors?.base?.[0] || 'Capture failed';
-      return res.status(captureRes.status).json({ error: errorMessage });
+    if (captureData?.userErrors?.length) {
+      return res.status(400).json({ error: captureData.userErrors.map(e => e.message).join(', ') });
     }
 
     if (notFlagged) {
@@ -77,11 +100,10 @@ export default async function handler(req, res) {
       { shop: shop, id: orderId },
       { projection: { 'guard.riskStatusTag': 1 } }
     );
-
     const riskStatusTag = existingOrder?.guard?.riskStatusTag || '';
 
     const result = await db.collection('orders').updateOne(
-      { 'shop': shop, 'id': orderId }, // Filter by shop and orderId
+      { 'shop': shop, 'id': orderId },
       {
         $set: {
           'guard.status': 'captured payment',
@@ -89,7 +111,7 @@ export default async function handler(req, res) {
           'guard.paymentStatus.cancelled': false,
           ...(isManuallyApproved && { 'guard.riskStatusTag': 'none' }),
         }
-      } // Update specific fields within guard
+      }
     );
 
     if (result.modifiedCount === 0) {
@@ -97,9 +119,8 @@ export default async function handler(req, res) {
     }
 
     const tagsToRemove = isManuallyApproved ? [riskStatusTag] : '';
-
     if (tagsToRemove.length > 0) {
-      await removeStatusTags(new shopify.clients.Graphql({ session }), admin_graphql_api_id, tagsToRemove);
+      await removeStatusTags(shopifyClient, admin_graphql_api_id, tagsToRemove);
     }
 
     await updateOrdersOnHold(shop, true, { location: "/capture" });
