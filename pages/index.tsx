@@ -42,42 +42,15 @@ export default function Home() {
           return;
         }
 
-        // Clean up any old subscription data first
-        try {
-          await fetch('/api/shop/cleanup-subscriptions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ shop }),
-          });
-        } catch (cleanupError) {
-          console.error('Error during cleanup:', cleanupError);
-        }
-
         // Step 2: Check for subscription updates
         const updateRes = await fetch(`/api/shop/subscription-update?shop=${shop}`);
         const updateData = await updateRes.json();
         console.log('Index page - Subscription update data:', updateData);
         
-        if (updateData && updateData.length > 0) {
-          const latestUpdate = updateData[0];
-          
-          // Check if the update is recent (within last 24 hours) and not applied
-          const updateTime = new Date(latestUpdate.createdAt || latestUpdate._id?.getTimestamp?.() || Date.now());
-          const isRecent = (Date.now() - updateTime.getTime()) < (24 * 60 * 60 * 1000); // 24 hours
-          
-          if (latestUpdate.applied === false && isRecent) {
-            console.log('Index page - Found valid pending subscription update:', latestUpdate);
-            setSubscriptionUpdate(latestUpdate);
-            return; // Skip other checks if there's a valid pending update
-          } else if (!isRecent) {
-            console.log('Index page - Found old subscription update, cleaning up...');
-            // Clean up old update
-            await fetch('/api/shop/subscription-update', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ shop, id: latestUpdate.id }),
-            });
-          }
+        if (updateData && updateData.length > 0 && updateData[0].applied === false) {
+          console.log('Index page - Found pending subscription update:', updateData[0]);
+          setSubscriptionUpdate(updateData[0]);
+          return; // Skip other checks if there's a pending update
         }
 
         // Step 3: Check for active subscriptions
@@ -86,41 +59,24 @@ export default function Home() {
         console.log('Index page - Subscription details:', subscriptionData);
         
         if (subscriptionData.subscriptions && subscriptionData.subscriptions.length === 0) {
-          console.log('Index page - No active subscriptions found, creating new plan');
+          console.log('Index page - No active subscriptions found, redirecting to generic plan');
+          // Create generic subscription plan
+          const createRes = await fetch('/api/shop/subscription-details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              shop, 
+              extendDays: 14, // Default trial period
+              price: process.env.SHOPIFY_BILLING_AMOUNT || '19.99',
+              interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
+            }),
+          });
           
-          try {
-            // Create generic subscription plan
-            const createRes = await fetch('/api/shop/subscription-details', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                shop, 
-                extendDays: 14, // Default trial period
-                price: process.env.SHOPIFY_BILLING_AMOUNT || '19.99',
-                interval: process.env.SHOPIFY_BILLING_INTERVAL || 'EVERY_30_DAYS'
-              }),
-            });
-            
-            if (!createRes.ok) {
-              throw new Error(`Failed to create subscription: ${createRes.status}`);
-            }
-            
-            const createData = await createRes.json();
-            
-            if (createData.error) {
-              console.error('Index page - Error creating subscription:', createData.error);
-              return; // Don't redirect if there's an error
-            }
-            
-            if (createData.confirmationUrl) {
-              console.log('Index page - Redirecting to subscription confirmation:', createData.confirmationUrl);
-              const redirect = Redirect.create(app);
-              redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
-            } else {
-              console.error('Index page - No confirmation URL received');
-            }
-          } catch (error) {
-            console.error('Index page - Error creating subscription plan:', error);
+          const createData = await createRes.json();
+          if (createData.confirmationUrl) {
+            console.log('Index page - Redirecting to subscription confirmation:', createData.confirmationUrl);
+            const redirect = Redirect.create(app);
+            redirect.dispatch(Redirect.Action.REMOTE, createData.confirmationUrl);
           }
         } else {
           console.log('Index page - Active subscription found, proceeding normally');
