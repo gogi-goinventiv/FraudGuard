@@ -36,7 +36,7 @@ const Sidebar = ({ shop, host }: { shop: string, host: string }) => {
                 <div className={`flex items-center px-4 py-1 rounded ${router.pathname === '/cancelled' ? 'bg-white/10' : ''}`}>
                     <MdCancel size={20} />
                     <Link
-                        href={`/cancelled?shop=${shop}`}
+                        href={`/cancelled?shop=${shop}&host=${host}`}
                         className="block text-white px-4 py-2 rounded"
                     >
                         Cancelled Orders
@@ -46,7 +46,7 @@ const Sidebar = ({ shop, host }: { shop: string, host: string }) => {
                 <div className={`flex items-center px-4 py-1 rounded ${router.pathname === '/approved' ? 'bg-white/10' : ''}`}>
                     <MdPaid size={20} />
                     <Link
-                        href={`/approved?shop=${shop}`}
+                        href={`/approved?shop=${shop}&host=${host}`}
                         className="block text-white px-4 py-2 rounded"
                     >
                         Approved Orders
@@ -56,7 +56,7 @@ const Sidebar = ({ shop, host }: { shop: string, host: string }) => {
                 <div className={`flex items-center px-4 py-1 rounded ${router.pathname === '/settings' ? 'bg-white/10' : ''}`}>
                     <FaGear size={20} />
                     <Link
-                        href={`/settings?shop=${shop}`}
+                        href={`/settings?shop=${shop}&host=${host}`}
                         className="block text-white px-4 py-2 rounded"
                     >
                         Settings
