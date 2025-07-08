@@ -1,4 +1,5 @@
 import { calculateRiskScore, getRiskLevel } from './riskScore';
+const logger = require('./logger');
 
 export default function calculateRiskLevel(order) {
     // Calculate the risk score
@@ -9,7 +10,7 @@ export default function calculateRiskLevel(order) {
 
     // Attach the risk level to the order
     order.riskLevel = riskLevel;
-    console.log(`Calculated risk level for order ${order.id}: ${riskLevel}`);
+    logger.info(`Calculated risk level for order ${order.id}: ${riskLevel}`);
     return order;
 }
 

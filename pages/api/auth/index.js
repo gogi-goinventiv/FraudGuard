@@ -1,8 +1,9 @@
 // pages/api/auth/index.js
 import { shopify } from '../../../lib/shopify';
+const logger = require('../../../utils/logger');
 
 export default async function handler(req, res) {
-  console.log('Host:', req.query.host);
+  logger.info('Request received for auth index', { category: 'api-auth-index' });
   if (req.method === 'GET') {
     try {
       await shopify.auth.begin({
@@ -12,11 +13,13 @@ export default async function handler(req, res) {
         rawRequest: req,
         rawResponse: res,
       });
+      logger.debug('Auth begin successful', { category: 'api-auth-index' });
     } catch (error) {
-      console.error('Auth begin error:', error);
+      logger.error('Auth begin error', error, { category: 'api-auth-index' });
       res.status(500).send('Internal Server Error');
     }
     return;
   }
+  logger.warn('Method not allowed for auth index', { category: 'api-auth-index' });
   res.status(405).send('Method Not Allowed');
 }

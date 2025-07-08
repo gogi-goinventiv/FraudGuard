@@ -1,5 +1,6 @@
 // pages/api/get-risk-stats.js
 import clientPromise from "../../lib/mongo";
+const logger = require('../../utils/logger');
 
 export default async function handler(req, res) {
   const { shop: shopParam, id: idParam } = req.method === "POST" ? req.body : req.query;

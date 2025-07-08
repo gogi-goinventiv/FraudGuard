@@ -10,6 +10,7 @@ import { whichOrdersToSendEmail } from '../utils/whichOrdersToSendEmail';
 import withMiddleware from '../utils/middleware/withMiddleware';
 import { EMAIL_RESEND_DELAY_IN_DAYS } from '../../../config/constants';
 import { addStatusTags } from '../utils/addStatusTags';
+const logger = require('../../../utils/logger');
 
 export const config = {
   api: {
@@ -23,10 +24,10 @@ async function retryDbOperation(operation, maxRetries = 3, delay = 1000) {
       return await operation();
     } catch (error) {
       if (error.code === 11000 || (error.message && error.message.includes('duplicate key'))) {
-        console.log(`Duplicate key error during DB operation (attempt ${attempt}/${maxRetries}). Indicating pre-existing data or race condition.`);
+        logger.warn(`Duplicate key error during DB operation (attempt ${attempt}/${maxRetries}). Indicating pre-existing data or race condition.`, { category: 'webhook-order-create' });
         return { duplicateKeyError: true, error, success: false };
       }
-      console.error(`Database operation failed (attempt ${attempt}/${maxRetries}):`, error.message);
+      logger.error(`Database operation failed (attempt ${attempt}/${maxRetries}):`, error.message, { category: 'webhook-order-create' });
       if (attempt >= maxRetries) {
         throw error;
       }
@@ -49,11 +50,11 @@ async function getOrderRisks(shopifyClient, orderIdGid) {
       return response.data.order.risk;
     }
     const errorDetails = response?.errors ? JSON.stringify(response.errors, null, 2) : 'No risk data found.';
-    console.error('Unexpected response structure for order risks:', errorDetails);
+    logger.error('Unexpected response structure for order risks:', errorDetails, { category: 'webhook-order-create' });
     return {};
   } catch (error) {
     const gqlErrors = error.response?.errors ? JSON.stringify(error.response.errors, null, 2) : '';
-    console.error('Error fetching order risks:', error.message, gqlErrors);
+    logger.error('Error fetching order risks:', error.message, gqlErrors, { category: 'webhook-order-create' });
     return {};
   }
 }
@@ -72,11 +73,11 @@ async function getOrderTxnDetails(shopifyClient, orderIdGid) {
       return response.data.order.transactions;
     }
     const errorDetails = response?.errors ? JSON.stringify(response.errors, null, 2) : 'No transaction data found.';
-    console.error('Unexpected response structure for order transactions:', errorDetails);
+    logger.error('Unexpected response structure for order transactions:', errorDetails, { category: 'webhook-order-create' });
     return [];
   } catch (error) {
     const gqlErrors = error.response?.errors ? JSON.stringify(error.response.errors, null, 2) : '';
-    console.error('Error fetching order transactions:', error.message, gqlErrors);
+    logger.error('Error fetching order transactions:', error.message, gqlErrors, { category: 'webhook-order-create' });
     return [];
   }
 }
@@ -92,16 +93,16 @@ async function makeApiRequest(endpoint, data, ignoreErrors = false) {
     if (!response.ok) {
       const errorMessage = responseData.error || `API request to /api/${endpoint} failed with status ${response.status}`;
       if (!ignoreErrors) throw new Error(errorMessage);
-      console.warn(`Ignored non-critical /api/${endpoint} error:`, errorMessage);
+      logger.warn(`Ignored non-critical /api/${endpoint} error:`, errorMessage, { category: 'webhook-order-create' });
       return { success: false, error: errorMessage, data: responseData };
     }
     return responseData;
   } catch (error) {
     if (ignoreErrors) {
-      console.warn(`Ignored non-critical /api/${endpoint} fetch error:`, error.message);
+      logger.warn(`Ignored non-critical /api/${endpoint} fetch error:`, error.message, { category: 'webhook-order-create' });
       return { success: false, error: error.message };
     }
-    console.error(`Error in makeApiRequest for /api/${endpoint}:`, error.message);
+    logger.error(`Error in makeApiRequest for /api/${endpoint}:`, error.message, { category: 'webhook-order-create' });
     throw error;
   }
 }
@@ -121,7 +122,7 @@ async function getOrderAmountInUSD(orderData) {
     // rate_per_usd: 1 USD = X currency, so USD = amount / rate_per_usd
     return amount / rateObj.rate_per_usd;
   } catch (e) {
-    console.warn('Currency conversion failed:', e.message);
+    logger.warn('Currency conversion failed:', e.message, { category: 'webhook-order-create' });
     return amount;
   }
 }
@@ -129,7 +130,7 @@ async function getOrderAmountInUSD(orderData) {
 async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, shopifyRiskAssessments, orderTxnDetails) {
   const existingOrder = await db.collection('orders').findOne({ shop, id: orderData.id });
   if (existingOrder) {
-    console.log(`Order ${orderData.id} for shop ${shop} already exists in database. Skipping insertion step.`);
+    logger.info(`Order ${orderData.id} for shop ${shop} already exists in database. Skipping insertion step.`, { category: 'webhook-order-create' });
   } else {
     // --- Tiering logic ---
     let tier = null;
@@ -144,7 +145,7 @@ async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, 
         tier = 2;
       }
     } catch (e) {
-      console.warn('Tiering calculation failed:', e.message);
+      logger.warn('Tiering calculation failed:', e.message, { category: 'webhook-order-create' });
     }
     // --- End tiering logic ---
     const orderDoc = {
@@ -173,25 +174,25 @@ async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, 
     const result = await retryDbOperation(insertOperation);
 
     if (result?.duplicateKeyError) {
-      console.log(`Order ${orderData.id} insertion attempt resulted in duplicate key, likely inserted concurrently.`);
+      logger.info(`Order ${orderData.id} insertion attempt resulted in duplicate key, likely inserted concurrently.`, { category: 'webhook-order-create' });
     } else if (result?.upsertedId) {
-      console.log(`Order ${orderData.id} successfully inserted with new ID: ${result.upsertedId}.`);
+      logger.info(`Order ${orderData.id} successfully inserted with new ID: ${result.upsertedId}.`, { category: 'webhook-order-create' });
     } else if (result?.matchedCount > 0) {
-      console.log(`Order ${orderData.id} matched existing document, $setOnInsert had no effect.`);
+      logger.info(`Order ${orderData.id} matched existing document, $setOnInsert had no effect.`, { category: 'webhook-order-create' });
     } else if (!result?.acknowledged) {
-      console.warn(`Order ${orderData.id} database operation was not acknowledged. Result:`, result);
+      logger.warn(`Order ${orderData.id} database operation was not acknowledged. Result:`, result, { category: 'webhook-order-create' });
     }
   }
 
   if (riskLevel.risk === 'high' && riskSettings?.autoCancelHighRisk) {
-    console.log(`Auto-cancelling high-risk order ${orderData.id} for ${shop}.`);
+    logger.info(`Auto-cancelling high-risk order ${orderData.id} for ${shop}.`, { category: 'webhook-order-create' });
     await makeApiRequest('cancel', { orderId: orderData.id, shop, orderAmount: orderData.total_price }, true);
   }
 
   try {
     await updateOrdersOnHold(shop);
   } catch (statsError) {
-    console.error(`Failed to update orders on hold stats for ${shop}:`, statsError.message);
+    logger.error(`Failed to update orders on hold stats for ${shop}:`, statsError.message, { category: 'webhook-order-create' });
   }
 
   if (whichOrdersToSendEmail(riskLevel, riskSettings)) {
@@ -206,10 +207,10 @@ async function handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, 
       if (storedOrder && !storedOrder.duplicateKeyError && storedOrder.id) {
         await makeApiRequest('email', { order: storedOrder }, true);
       } else {
-        console.warn(`Skipping email for order ${orderData.id}; order not found after upsert or fetch issue.`);
+        logger.warn(`Skipping email for order ${orderData.id}; order not found after upsert or fetch issue.`, { category: 'webhook-order-create' });
       }
     } catch (emailError) {
-      console.error(`Failed to send verification email for order ${orderData.id}:`, emailError.message);
+      logger.error(`Failed to send verification email for order ${orderData.id}:`, emailError.message, { category: 'webhook-order-create' });
     }
   }
   return true;
@@ -235,7 +236,7 @@ async function validateShopifyWebhook(req, rawBodyString, res) {
     }
     return isValid;
   } catch (error) {
-    console.error('Shopify webhook validation error:', error.message);
+    logger.error('Shopify webhook validation error:', error.message, { category: 'webhook-order-create' });
     if (!res.headersSent) {
       res.status(401).json({ error: `Webhook validation failed: ${error.message}` });
     }
@@ -248,19 +249,19 @@ async function fetchRiskSettings(shop) {
     const response = await fetch(`${process.env.HOST}/api/settings/risk-settings?shop=${shop}`);
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Failed to fetch risk settings for ${shop}: ${response.status} ${errorText}`);
+      logger.error(`Failed to fetch risk settings for ${shop}: ${response.status} ${errorText}`, { category: 'webhook-order-create' });
       return {};
     }
     return await response.json();
   } catch (error) {
-    console.error(`Network or parsing error fetching risk settings for ${shop}:`, error.message);
+    logger.error(`Network or parsing error fetching risk settings for ${shop}:`, error.message, { category: 'webhook-order-create' });
     return {};
   }
 }
 
 async function checkAndMarkWebhookProcessed(db, idempotencyKey, orderId, shop) {
   if (!idempotencyKey) {
-    console.warn(`Missing idempotency key for order ${orderId} on shop ${shop}. Proceeding without duplicate check.`);
+    logger.warn(`Missing idempotency key for order ${orderId} on shop ${shop}. Proceeding without duplicate check.`, { category: 'webhook-order-create' });
     return { canProcess: true };
   }
 
@@ -270,12 +271,12 @@ async function checkAndMarkWebhookProcessed(db, idempotencyKey, orderId, shop) {
       { unique: true, background: true }
     );
   } catch (indexError) {
-    console.warn(`Non-critical: Failed to ensure 'key_1_orderId_1' index on processed-webhooks for ${shop}: ${indexError.message}.`);
+    logger.warn(`Non-critical: Failed to ensure 'key_1_orderId_1' index on processed-webhooks for ${shop}: ${indexError.message}.`, { category: 'webhook-order-create' });
   }
 
   const processedWebhook = await db.collection('processed-webhooks').findOne({ key: idempotencyKey, orderId });
   if (processedWebhook) {
-    console.log(`Webhook for order ${orderId} (key: ${idempotencyKey}) on shop ${shop} already processed at ${processedWebhook.processedAt}.`);
+    logger.info(`Webhook for order ${orderId} (key: ${idempotencyKey}) on shop ${shop} already processed at ${processedWebhook.processedAt}.`, { category: 'webhook-order-create' });
     return { canProcess: false, message: 'Webhook already processed' };
   }
 
@@ -288,10 +289,10 @@ async function checkAndMarkWebhookProcessed(db, idempotencyKey, orderId, shop) {
     return { canProcess: true };
   } catch (err) {
     if (err.code === 11000) {
-      console.log(`Concurrent processing detected for webhook order ${orderId} (key: ${idempotencyKey}) on shop ${shop}.`);
+      logger.info(`Concurrent processing detected for webhook order ${orderId} (key: ${idempotencyKey}) on shop ${shop}.`, { category: 'webhook-order-create' });
       return { canProcess: false, message: 'Webhook processed concurrently by another instance' };
     }
-    console.warn(`Failed to mark webhook as processed (key: ${idempotencyKey}, order ${orderId}, shop ${shop}): ${err.message}. Proceeding with caution.`);
+    logger.warn(`Failed to mark webhook as processed (key: ${idempotencyKey}, order ${orderId}, shop ${shop}): ${err.message}. Proceeding with caution.`, { category: 'webhook-order-create' });
     return { canProcess: true, warning: 'Failed to record processed webhook, but proceeding.' };
   }
 }
@@ -310,10 +311,10 @@ async function enqueueWebhook(db, webhookData) {
     await db.collection('webhook-queue').createIndex({ status: 1, createdAt: 1 }, { background: true });
 
     const result = await db.collection('webhook-queue').insertOne(queueItem);
-    console.log(`Webhook queued for order ${webhookData.orderData.id} with ID: ${result.insertedId}`);
+    logger.info(`Webhook queued for order ${webhookData.orderData.id} with ID: ${result.insertedId}.`, { category: 'webhook-order-create' });
     return result.insertedId;
   } catch (error) {
-    console.error('Failed to enqueue webhook:', error);
+    logger.error('Failed to enqueue webhook:', error, { category: 'webhook-order-create' });
     throw error;
   }
 }
@@ -327,10 +328,10 @@ async function triggerQueueProcessor(shop) {
     });
 
     if (!response.ok) {
-      console.warn(`Queue processor trigger failed: ${response.status}`);
+      logger.warn(`Queue processor trigger failed: ${response.status}.`, { category: 'webhook-order-create' });
     }
   } catch (error) {
-    console.warn('Failed to trigger queue processor:', error.message);
+    logger.warn('Failed to trigger queue processor:', error.message, { category: 'webhook-order-create' });
   }
 }
 
@@ -366,16 +367,16 @@ export async function processQueuedWebhook(db, queueItem) {
     ]);
 
     const orderTxnDetails = await getOrderTxnDetails(shopifyClient, orderData.admin_graphql_api_id);
-    console.log(`Order ${orderData.id} for shop ${shop} has transaction details:`, orderTxnDetails);
+    logger.info(`Order ${orderData.id} for shop ${shop} has transaction details:`, orderTxnDetails, { category: 'webhook-order-create' });
 
     const riskLevel = await getRiskLevel(orderData, shop, session.accessToken, shopifyApiRiskData, orderTxnDetails)
       .catch(err => {
-        console.error(`Critical error in getRiskLevel for order ${orderData.id}, shop ${shop}:`, err.message);
+        logger.error(`Critical error in getRiskLevel for order ${orderData.id}, shop ${shop}:`, err.message, { category: 'webhook-order-create' });
         return { risk: 'unknown', score: 0, factors: [], error: `Risk assessment failed: ${err.message}` };
       });
 
     if (whichOrdersToFlag(riskLevel, riskSettings)) {
-      console.log(`Order ${orderData.id} for shop ${shop} is being flagged. Risk: ${riskLevel.risk}, Score: ${riskLevel.score}`);
+      logger.info(`Order ${orderData.id} for shop ${shop} is being flagged. Risk: ${riskLevel.risk}, Score: ${riskLevel.score}.`, { category: 'webhook-order-create' });
       
       // Handle the flagged order first
       await handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, shopifyApiRiskData, orderTxnDetails);
@@ -391,27 +392,27 @@ export async function processQueuedWebhook(db, queueItem) {
         try {
           const tagResult = await addStatusTags(shopifyClient, orderData.admin_graphql_api_id, tagsToAdd);
           if (tagResult) {
-            console.log(`Successfully added tags ${tagsToAdd.join(', ')} to order ${orderData.id}`);
+            logger.info(`Successfully added tags ${tagsToAdd.join(', ')} to order ${orderData.id}.`, { category: 'webhook-order-create' });
           } else {
-            console.warn(`Failed to add tags to order ${orderData.id}`);
+            logger.warn(`Failed to add tags to order ${orderData.id}.`, { category: 'webhook-order-create' });
           }
         } catch (tagError) {
-          console.error(`Error adding tags to order ${orderData.id}:`, tagError.message);
+          logger.error(`Error adding tags to order ${orderData.id}:`, tagError.message, { category: 'webhook-order-create' });
         }
       }
     } else {
       const existingOrderInDb = await db.collection('orders').findOne({ shop, id: orderData.id });
       if (existingOrderInDb) {
-        console.log(`Order ${orderData.id} (not flagged path) for shop ${shop} already exists in our database. Assuming handled.`);
+        logger.info(`Order ${orderData.id} (not flagged path) for shop ${shop} already exists in our database. Assuming handled.`, { category: 'webhook-order-create' });
       } else {
-        console.log(`Order ${orderData.id} for shop ${shop} not flagged. Attempting payment capture.`);
+        logger.info(`Order ${orderData.id} for shop ${shop} not flagged. Attempting payment capture.`, { category: 'webhook-order-create' });
         const captureData = { orderId: orderData.id, shop, orderAmount: orderData.total_price, notFlagged: true };
         const captureResult = await makeApiRequest('capture', captureData, true);
 
         if (!captureResult.success) {
-          console.warn(`Payment capture attempt for order ${orderData.id} (shop ${shop}) was not successful: ${captureResult.error}`);
+          logger.warn(`Payment capture attempt for order ${orderData.id} (shop ${shop}) was not successful: ${captureResult.error}.`, { category: 'webhook-order-create' });
         } else {
-          console.log(`Payment capture attempt for order ${orderData.id} (shop ${shop}) processed. API response:`, captureResult);
+          logger.info(`Payment capture attempt for order ${orderData.id} (shop ${shop}) processed. API response:`, captureResult, { category: 'webhook-order-create' });
         }
       }
     }
@@ -426,11 +427,11 @@ export async function processQueuedWebhook(db, queueItem) {
       }
     );
 
-    console.log(`Successfully processed queued webhook for order ${orderData.id}`);
+    logger.info(`Successfully processed queued webhook for order ${orderData.id}.`, { category: 'webhook-order-create' });
     return true;
 
   } catch (error) {
-    console.error(`Error processing queued webhook for order ${orderData.id}:`, error.message);
+    logger.error(`Error processing queued webhook for order ${orderData.id}:`, error.message, { category: 'webhook-order-create' });
 
     const shouldRetry = queueItem.attempts < queueItem.maxAttempts;
     const updateData = shouldRetry
@@ -452,7 +453,7 @@ export async function processQueuedWebhook(db, queueItem) {
     );
 
     if (!shouldRetry) {
-      console.error(`Webhook processing failed permanently for order ${orderData.id} after ${queueItem.attempts} attempts`);
+      logger.error(`Webhook processing failed permanently for order ${orderData.id} after ${queueItem.attempts} attempts.`, { category: 'webhook-order-create' });
     }
 
     return false;
@@ -472,7 +473,7 @@ const handler = async (req, res) => {
     const rawBodyBuffer = await buffer(req);
     rawBodyString = rawBodyBuffer.toString('utf8');
   } catch (bufError) {
-    console.error('Failed to buffer request body:', bufError);
+    logger.error('Failed to buffer request body:', bufError, { category: 'webhook-order-create' });
     return res.status(500).json({ error: 'Failed to read request body' });
   }
 
@@ -484,12 +485,12 @@ const handler = async (req, res) => {
   try {
     orderData = JSON.parse(rawBodyString);
   } catch (parseError) {
-    console.error('Failed to parse webhook JSON body:', parseError);
+    logger.error('Failed to parse webhook JSON body:', parseError, { category: 'webhook-order-create' });
     return res.status(400).json({ error: 'Invalid JSON in webhook body' });
   }
 
   if (!shop || !orderData?.id || !orderData?.admin_graphql_api_id) {
-    console.error('Invalid webhook data: Missing shop, order ID, or admin_graphql_api_id.', { shop, orderId: orderData?.id });
+    logger.error('Invalid webhook data: Missing shop, order ID, or admin_graphql_api_id.', { shop, orderId: orderData?.id, category: 'webhook-order-create' });
     return res.status(400).json({ error: 'Incomplete or invalid order data in webhook.' });
   }
 
@@ -500,7 +501,7 @@ const handler = async (req, res) => {
     const storeName = shop.split('.')[0];
     db = mongoClient.db(storeName);
   } catch (dbConnectionError) {
-    console.error(`MongoDB connection error for shop ${shop}:`, dbConnectionError);
+    logger.error(`MongoDB connection error for shop ${shop}:`, dbConnectionError, { category: 'webhook-order-create' });
     return res.status(500).json({ error: 'Database connection failed' });
   }
 
@@ -508,7 +509,7 @@ const handler = async (req, res) => {
   if (!processingStatus.canProcess) {
     return res.status(200).json({ success: true, message: processingStatus.message });
   }
-  if (processingStatus.warning) console.warn(processingStatus.warning);
+  if (processingStatus.warning) logger.warn(processingStatus.warning, { category: 'webhook-order-create' });
 
   try {
     const webhookData = {
@@ -528,7 +529,7 @@ const handler = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(`Failed to queue webhook for order ${orderData.id}, shop ${shop}:`, error);
+    logger.error(`Failed to queue webhook for order ${orderData.id}, shop ${shop}:`, error, { category: 'webhook-order-create' });
     return res.status(500).json({ error: 'Failed to queue webhook for processing' });
   }
 }

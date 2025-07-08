@@ -1,23 +1,27 @@
 import sessionHandler from "./utils/sessionHandler";
+const logger = require('../../utils/logger');
 
 export default async function handler(req, res) {
     try {
         const { shop } = req.query;
+        logger.info({ category: 'api-reset-session', message: 'Request received for resetting session' });
         console.log('Shop:', shop);
         
         // Ensure shop is converted to string and validate it exists
         if (!shop) {
+            logger.error({ category: 'api-reset-session', message: 'Shop parameter is required' });
             return res.status(400).json({ error: 'Shop parameter is required' });
         }
         
         const shopString = String(shop);
         
         await sessionHandler.deleteSession(`offline_${shopString}`, shopString);
+        logger.info({ category: 'api-reset-session', message: 'Session cleared successfully' });
 
         res.status(200).json({ message: 'Session cleared' });
         
     } catch (error) {
-        console.error('Error clearing session:', error);
+        logger.error({ category: 'api-reset-session', message: 'Error clearing session', error: error.message });
         
         // Return appropriate status code based on error type
         if (error.message.includes('not found')) {

@@ -3,6 +3,7 @@
 import { CARD_ATTEMPTS, FAILED_PAYMENT_ATTEMPTS, SCORE_THRESHOLD_HIGH_RISK, SCORE_THRESHOLD_MEDIUM_RISK } from "../../../config/constants";
 import clientPromise from "../../../lib/mongo";
 // import currencyCodes from "currency-codes";
+const logger = require('../../../utils/logger');
 
 function hasMultipleFailedPaymentAttempts(transactionsData) {
     let failCount = 0;
@@ -68,7 +69,7 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
             const ipLocationResponse = await fetch(`https://ipwho.is/${browser_ip}`);
             const ipLocationData = await ipLocationResponse.json();
             if (!ipLocationData) return;
-            console.log("ipLocationData", ipLocationData, order?.billing_address?.country);
+            logger.info("ipLocationData", ipLocationData, order?.billing_address?.country);
             if (ipLocationData?.country !== order?.billing_address?.country) {
                 score += 1;
                 reason.push("IP mismatch with billing country");
@@ -170,6 +171,6 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
         return { score, reason, risk: 'high' };                      // Scores 4+ are high
 
     } catch (error) {
-        console.error(error);
+        logger.error(error);
     }
 };

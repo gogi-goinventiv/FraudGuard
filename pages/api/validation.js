@@ -5,6 +5,7 @@ import clientPromise from '../../lib/mongo';
 import { removeStatusTags } from './utils/removeStatusTags';
 import { addStatusTags } from './utils/addStatusTags';
 import { shopify } from "../../lib/shopify";
+const logger = require('../../utils/logger');
 
 const MAX_VERIFICATION_ATTEMPTS = 3;
 
@@ -289,9 +290,9 @@ async function handleFailedVerification(db, shop, orderId, orderData, autoCancel
         throw new Error(cancelData.error || 'Auto cancel failed');
       }
 
-      console.log('Auto cancelling unverified orders');
+      logger.info('Auto cancelling unverified orders', { orderId, shop, orderAmount: orderData?.total_price }, { category: 'api-validation' });
     } catch (error) {
-      console.log('Auto cancel failed:', error);
+      logger.error('Auto cancel failed', error, { orderId, shop }, { category: 'api-validation' });
     }
   }
 }
@@ -309,8 +310,8 @@ async function handleAutoCapture(shop, orderId, orderAmount) {
       throw new Error(captureData.error || 'Auto capture failed');
     }
 
-    console.log('Auto capturing verified orders');
+    logger.info('Auto capturing verified orders', { orderId, shop, orderAmount }, { category: 'api-validation' });
   } catch (error) {
-    console.log('Auto capture failed:', error);
+    logger.error('Auto capture failed', error, { orderId, shop }, { category: 'api-validation' });
   }
 }

@@ -1,4 +1,5 @@
 import { sessionStorage } from '../../lib/shopify';
+const logger = require('../../utils/logger');
 
 export default async function handler(req, res) {
   const { shop } = req.query;
