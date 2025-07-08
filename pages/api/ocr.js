@@ -3,6 +3,7 @@ import { createWorker } from 'tesseract.js';
 import fs from 'fs/promises';
 import path from 'path';
 import sharp from 'sharp';
+const logger = require('../../utils/logger');
 
 export const config = {
   api: {
@@ -192,7 +193,7 @@ async function runOCRForNumbers(filepath) {
       try {
         await worker.terminate();
       } catch (terminateError) {
-        console.error('Error terminating worker:', terminateError);
+        logger.error('Error terminating worker:', { category: 'api-ocr', error: terminateError });
       }
     }
     throw err;
@@ -225,7 +226,7 @@ async function runOCRForText(filepath) {
       try {
         await worker.terminate();
       } catch (terminateError) {
-        console.error('Error terminating worker:', terminateError);
+        logger.error('Error terminating worker:', { category: 'api-ocr', error: terminateError });
       }
     }
     throw err;
@@ -237,7 +238,7 @@ async function cleanupFile(filepath) {
   try {
     await fs.unlink(filepath);
   } catch (error) {
-    console.error('Error deleting file:', filepath, error);
+    logger.error('Error deleting file:', { category: 'api-ocr', filepath: filepath, error: error });
   }
 }
 
@@ -261,7 +262,7 @@ export default async function handler(req, res) {
   // Set up request timeout
   const timeoutId = setTimeout(() => {
     if (!responseHandled) {
-      console.error('Request timed out');
+      logger.error('Request timed out', { category: 'api-ocr' });
       handleResponse(408, { error: 'Request timeout' });
     }
   }, 30000);
@@ -320,7 +321,7 @@ export default async function handler(req, res) {
       try {
         ocrResult = await runOCRForNumbers(file.filepath);
       } catch (ocrError) {
-        console.error('OCR error:', ocrError);
+        logger.error('OCR error:', { category: 'api-ocr', error: ocrError });
         await cleanupFile(uploadedFile);
         clearTimeout(timeoutId);
         return handleResponse(500, { 
@@ -334,7 +335,7 @@ export default async function handler(req, res) {
       try {
         await cropImageBottom(file.filepath, croppedPath, 0.3);
       } catch (cropError) {
-        console.error('Image cropping error:', cropError);
+        logger.error('Image cropping error:', { category: 'api-ocr', error: cropError });
       }
 
       // Preprocess cropped image
@@ -342,7 +343,7 @@ export default async function handler(req, res) {
       try {
         await preprocessImage(croppedPath, preprocessedPath);
       } catch (preError) {
-        console.error('Image preprocessing error:', preError);
+        logger.error('Image preprocessing error:', { category: 'api-ocr', error: preError });
       }
 
       // Run OCR for text (including names) on preprocessed cropped image
@@ -350,7 +351,7 @@ export default async function handler(req, res) {
       try {
         textOcrResult = await runOCRForText(preprocessedPath);
       } catch (textOcrError) {
-        console.error('Text OCR error:', textOcrError);
+        logger.error('Text OCR error:', { category: 'api-ocr', error: textOcrError });
         // Don't fail the entire request if text OCR fails
         textOcrResult = { rawText: '', confidence: 0, cardholderName: null };
       }
@@ -360,7 +361,7 @@ export default async function handler(req, res) {
         await cleanupFile(croppedPath);
         await cleanupFile(preprocessedPath);
       } catch (cleanupError) {
-        console.error('Error cleaning up cropped/preprocessed file:', cleanupError);
+        logger.error('Error cleaning up cropped/preprocessed file:', { category: 'api-ocr', error: cleanupError });
       }
 
       // Extract potential last 4 digits
@@ -401,10 +402,11 @@ export default async function handler(req, res) {
       await cleanupFile(uploadedFile);
       
       clearTimeout(timeoutId);
+      logger.info('OCR request successful', { category: 'api-ocr' });
       return handleResponse(200, response);
 
     } catch (parseError) {
-      console.error('Form parsing error:', parseError);
+      logger.error('Form parsing error:', { category: 'api-ocr', error: parseError });
       if (uploadedFile) {
         await cleanupFile(uploadedFile);
       }
@@ -416,7 +418,7 @@ export default async function handler(req, res) {
     }
 
   } catch (error) {
-    console.error('Handler error:', error);
+    logger.error('Handler error:', { category: 'api-ocr', error: error });
     clearTimeout(timeoutId);
     return handleResponse(500, { 
       error: 'Internal server error', 

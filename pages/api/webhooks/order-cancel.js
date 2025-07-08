@@ -4,6 +4,7 @@ import { shopify } from '../../../lib/shopify';
 import clientPromise from '../../../lib/mongo';
 import { incrementRiskPreventedAmount, updateOrdersOnHold } from "../utils/updateRiskStats";
 import withMiddleware from '../utils/middleware/withMiddleware';
+const logger = require('../../../utils/logger');
 
 export const config = {
   api: {
@@ -17,10 +18,10 @@ async function retryDbOperation(operation, maxRetries = 3, delay = 1000) {
       return await operation();
     } catch (error) {
       if (error.code === 11000 || (error.message && error.message.includes('duplicate key'))) {
-        console.log(`Duplicate key error during DB operation (attempt ${attempt}/${maxRetries}). Indicating pre-existing data or race condition.`);
+        logger.warn(`Duplicate key error during DB operation (attempt ${attempt}/${maxRetries}). Indicating pre-existing data or race condition.`, { category: 'webhook-order-cancel' });
         return { duplicateKeyError: true, error, success: false };
       }
-      console.error(`Database operation failed (attempt ${attempt}/${maxRetries}):`, error.message);
+      logger.error(`Database operation failed (attempt ${attempt}/${maxRetries}):`, error.message, { category: 'webhook-order-cancel' });
       if (attempt >= maxRetries) {
         throw error;
       }
@@ -49,7 +50,7 @@ async function validateShopifyWebhook(req, rawBodyString, res) {
     }
     return isValid;
   } catch (error) {
-    console.error('Shopify webhook validation error:', error.message);
+    logger.error('Shopify webhook validation error:', error.message, { category: 'webhook-order-cancel' });
     if (!res.headersSent) {
       res.status(401).json({ error: `Webhook validation failed: ${error.message}` });
     }
@@ -59,7 +60,7 @@ async function validateShopifyWebhook(req, rawBodyString, res) {
 
 async function checkAndMarkWebhookProcessed(db, idempotencyKey, orderId, shop) {
   if (!idempotencyKey) {
-    console.warn(`Missing idempotency key for order cancellation ${orderId} on shop ${shop}. Proceeding without duplicate check.`);
+    logger.warn(`Missing idempotency key for order cancellation ${orderId} on shop ${shop}. Proceeding without duplicate check.`, { category: 'webhook-order-cancel' });
     return { canProcess: true };
   }
 
@@ -69,7 +70,7 @@ async function checkAndMarkWebhookProcessed(db, idempotencyKey, orderId, shop) {
       { unique: true, background: true }
     );
   } catch (indexError) {
-    console.warn(`Non-critical: Failed to ensure 'key_1_orderId_1_type_1' index on processed-webhooks for ${shop}: ${indexError.message}.`);
+    logger.warn(`Non-critical: Failed to ensure 'key_1_orderId_1_type_1' index on processed-webhooks for ${shop}: ${indexError.message}.`, { category: 'webhook-order-cancel' });
   }
 
   const processedWebhook = await db.collection('processed-webhooks').findOne({ 
@@ -79,7 +80,7 @@ async function checkAndMarkWebhookProcessed(db, idempotencyKey, orderId, shop) {
   });
   
   if (processedWebhook) {
-    console.log(`Order cancellation webhook for order ${orderId} (key: ${idempotencyKey}) on shop ${shop} already processed at ${processedWebhook.processedAt}.`);
+    logger.info(`Order cancellation webhook for order ${orderId} (key: ${idempotencyKey}) on shop ${shop} already processed at ${processedWebhook.processedAt}.`, { category: 'webhook-order-cancel' });
     return { canProcess: false, message: 'Webhook already processed' };
   }
 
@@ -92,10 +93,10 @@ async function checkAndMarkWebhookProcessed(db, idempotencyKey, orderId, shop) {
     return { canProcess: true };
   } catch (err) {
     if (err.code === 11000) {
-      console.log(`Concurrent processing detected for order cancellation webhook ${orderId} (key: ${idempotencyKey}) on shop ${shop}.`);
+      logger.warn(`Concurrent processing detected for order cancellation webhook ${orderId} (key: ${idempotencyKey}) on shop ${shop}.`, { category: 'webhook-order-cancel' });
       return { canProcess: false, message: 'Webhook processed concurrently by another instance' };
     }
-    console.warn(`Failed to mark cancellation webhook as processed (key: ${idempotencyKey}, order ${orderId}, shop ${shop}): ${err.message}. Proceeding with caution.`);
+    logger.warn(`Failed to mark cancellation webhook as processed (key: ${idempotencyKey}, order ${orderId}, shop ${shop}): ${err.message}. Proceeding with caution.`, { category: 'webhook-order-cancel' });
     return { canProcess: true, warning: 'Failed to record processed webhook, but proceeding.' };
   }
 }
@@ -116,10 +117,10 @@ async function enqueueCancelWebhook(db, webhookData) {
     await db.collection('webhook-queue').createIndex({ type: 1, status: 1 }, { background: true });
     
     const result = await db.collection('webhook-queue').insertOne(queueItem);
-    console.log(`Order cancellation webhook queued for order ${webhookData.orderCancelData.id} with ID: ${result.insertedId}`);
+    logger.info(`Order cancellation webhook queued for order ${webhookData.orderCancelData.id} with ID: ${result.insertedId}.`, { category: 'webhook-order-cancel' });
     return result.insertedId;
   } catch (error) {
-    console.error('Failed to enqueue order cancellation webhook:', error);
+    logger.error('Failed to enqueue order cancellation webhook:', error, { category: 'webhook-order-cancel' });
     throw error;
   }
 }
@@ -133,10 +134,10 @@ async function triggerQueueProcessor(shop) {
     });
     
     if (!response.ok) {
-      console.warn(`Queue processor trigger failed: ${response.status}`);
+      logger.warn(`Queue processor trigger failed: ${response.status}.`, { category: 'webhook-order-cancel' });
     }
   } catch (error) {
-    console.warn('Failed to trigger queue processor:', error.message);
+    logger.warn('Failed to trigger queue processor:', error.message, { category: 'webhook-order-cancel' });
   }
 }
 
@@ -155,7 +156,7 @@ export async function processQueuedCancelWebhook(db, queueItem) {
       }
     );
 
-    console.log(`Processing order cancellation for order ${orderCancelData.id} on shop ${shop}. Cancel data:`, orderCancelData);
+    logger.info(`Processing order cancellation for order ${orderCancelData.id} on shop ${shop}. Cancel data:`, orderCancelData, { category: 'webhook-order-cancel' });
 
     // Check if order exists in our database
     const existingOrder = await db.collection('orders').findOne(
@@ -164,14 +165,14 @@ export async function processQueuedCancelWebhook(db, queueItem) {
     );
 
     if (!existingOrder) {
-      console.log(`Order ${orderCancelData.id} does not exist in our database, skipping.`);
+      logger.info(`Order ${orderCancelData.id} does not exist in our database, skipping.`, { category: 'webhook-order-cancel' });
       return;
     }
 
     const previousStatus = existingOrder?.guard?.status || 'unknown';
 
     if (previousStatus === 'cancelled payment') {
-      console.log(`Order ${orderCancelData.id} is already cancelled, skipping.`);
+      logger.info(`Order ${orderCancelData.id} is already cancelled, skipping.`, { category: 'webhook-order-cancel' });
       return;
     }
     
@@ -193,13 +194,13 @@ export async function processQueuedCancelWebhook(db, queueItem) {
     const updateResult = await retryDbOperation(updateOperation);
 
     if (updateResult?.duplicateKeyError) {
-      console.log(`Order cancellation update for ${orderCancelData.id} resulted in duplicate key error, but this is non-critical for updates.`);
+      logger.info(`Order cancellation update for ${orderCancelData.id} resulted in duplicate key error, but this is non-critical for updates.`, { category: 'webhook-order-cancel' });
     } else if (updateResult?.modifiedCount > 0) {
-      console.log(`Order ${orderCancelData.id} successfully updated to cancelled status.`);
+      logger.info(`Order ${orderCancelData.id} successfully updated to cancelled status.`, { category: 'webhook-order-cancel' });
     } else if (updateResult?.matchedCount > 0) {
-      console.log(`Order ${orderCancelData.id} was matched but no modifications were needed (possibly already cancelled).`);
+      logger.info(`Order ${orderCancelData.id} was matched but no modifications were needed (possibly already cancelled).`, { category: 'webhook-order-cancel' });
     } else {
-      console.warn(`Order ${orderCancelData.id} was not found in database for cancellation update. This might be expected if the order was never flagged.`);
+      logger.warn(`Order ${orderCancelData.id} was not found in database for cancellation update. This might be expected if the order was never flagged.`, { category: 'webhook-order-cancel' });
     }
 
     await incrementRiskPreventedAmount(shop, parseFloat(orderCancelData.total_price));
@@ -216,11 +217,11 @@ export async function processQueuedCancelWebhook(db, queueItem) {
       }
     );
 
-    console.log(`Successfully processed queued cancellation webhook for order ${orderCancelData.id}`);
+    logger.info(`Successfully processed queued cancellation webhook for order ${orderCancelData.id}.`, { category: 'webhook-order-cancel' });
     return true;
 
   } catch (error) {
-    console.error(`Error processing queued cancellation webhook for order ${orderCancelData.id}:`, error.message);
+    logger.error(`Error processing queued cancellation webhook for order ${orderCancelData.id}:`, error.message, { category: 'webhook-order-cancel' });
     
     const shouldRetry = queueItem.attempts < queueItem.maxAttempts;
     const updateData = shouldRetry 
@@ -242,7 +243,7 @@ export async function processQueuedCancelWebhook(db, queueItem) {
     );
 
     if (!shouldRetry) {
-      console.error(`Cancellation webhook processing failed permanently for order ${orderCancelData.id} after ${queueItem.attempts} attempts`);
+      logger.error(`Cancellation webhook processing failed permanently for order ${orderCancelData.id} after ${queueItem.attempts} attempts.`, { category: 'webhook-order-cancel' });
     }
     
     return false;
@@ -262,7 +263,7 @@ const handler = async (req, res) => {
     const rawBodyBuffer = await buffer(req);
     rawBodyString = rawBodyBuffer.toString('utf8');
   } catch (bufError) {
-    console.error('Failed to buffer request body:', bufError);
+    logger.error('Failed to buffer request body:', bufError, { category: 'webhook-order-cancel' });
     return res.status(500).json({ error: 'Failed to read request body' });
   }
 
@@ -274,12 +275,12 @@ const handler = async (req, res) => {
   try {
     orderCancelData = JSON.parse(rawBodyString);
   } catch (parseError) {
-    console.error('Failed to parse webhook JSON body:', parseError);
+    logger.error('Failed to parse webhook JSON body:', parseError, { category: 'webhook-order-cancel' });
     return res.status(400).json({ error: 'Invalid JSON in webhook body' });
   }
 
   if (!shop || !orderCancelData?.id) {
-    console.error('Invalid webhook data: Missing shop or order ID.', { shop, orderId: orderCancelData?.id });
+    logger.error('Invalid webhook data: Missing shop or order ID.', { shop, orderId: orderCancelData?.id, category: 'webhook-order-cancel' });
     return res.status(400).json({ error: 'Incomplete or invalid order cancellation data in webhook.' });
   }
 
@@ -290,7 +291,7 @@ const handler = async (req, res) => {
     const storeName = shop.split('.')[0];
     db = mongoClient.db(storeName);
   } catch (dbConnectionError) {
-    console.error(`MongoDB connection error for shop ${shop}:`, dbConnectionError);
+    logger.error(`MongoDB connection error for shop ${shop}:`, dbConnectionError, { category: 'webhook-order-cancel' });
     return res.status(500).json({ error: 'Database connection failed' });
   }
 
@@ -298,7 +299,7 @@ const handler = async (req, res) => {
   if (!processingStatus.canProcess) {
     return res.status(200).json({ success: true, message: processingStatus.message });
   }
-  if (processingStatus.warning) console.warn(processingStatus.warning);
+  if (processingStatus.warning) logger.warn(processingStatus.warning, { category: 'webhook-order-cancel' });
 
   try {
     const webhookData = {
@@ -319,7 +320,7 @@ const handler = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(`Failed to queue cancellation webhook for order ${orderCancelData.id}, shop ${shop}:`, error);
+    logger.error(`Failed to queue cancellation webhook for order ${orderCancelData.id}, shop ${shop}:`, error, { category: 'webhook-order-cancel' });
     return res.status(500).json({ error: 'Failed to queue cancellation webhook for processing' });
   }
 }

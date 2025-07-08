@@ -2,6 +2,7 @@
 import { DeliveryMethod } from '@shopify/shopify-api';
 import { shopify } from '../../../lib/shopify';
 import sessionHandler from '../utils/sessionHandler';
+const logger = require('../../../utils/logger');
 
 const BILLING_SETTINGS = {
   chargeName: process.env.SHOPIFY_BILLING_PLAN_NAME || 'Premium Plan',
@@ -37,7 +38,7 @@ async function checkBillingStatus(session) {
     return subscriptions && subscriptions.length > 0 && 
            subscriptions.some(sub => sub.status === 'ACTIVE');
   } catch (error) {
-    console.error('Error checking billing status:', error);
+    logger.error('Error checking billing status:', error);
     return false;
   }
 }
@@ -88,10 +89,10 @@ async function createBillingSubscription(session, host = '') {
   };
 
   try {
-    console.log('Creating subscription with variables:', JSON.stringify(variables, null, 2));
+    logger.debug('Creating subscription with variables:', JSON.stringify(variables, null, 2));
     const response = await client.request(mutation, { variables });
 
-    console.log('Subscription response:', JSON.stringify(response, null, 2));
+    logger.debug('Subscription response:', JSON.stringify(response, null, 2));
 
     if (response.data.appSubscriptionCreate.userErrors.length > 0) {
       throw new Error(
@@ -101,13 +102,14 @@ async function createBillingSubscription(session, host = '') {
 
     return response.data.appSubscriptionCreate.confirmationUrl;
   } catch (error) {
-    console.error('Error creating subscription:', error);
+    logger.error('Error creating subscription:', error);
     throw error;
   }
 }
 
 export default async function handler(req, res) {
   try {
+    logger.info('Auth callback request received', { category: 'api-auth-callback' });
     const callback = await shopify.auth.callback({
       rawRequest: req,
       rawResponse: res,
@@ -117,7 +119,7 @@ export default async function handler(req, res) {
     const accessToken = session.accessToken;
     const shop = session.shop;
 
-    console.log("Access token:", accessToken);
+    logger.debug('Auth callback successful', { category: 'api-auth-callback' });
 
     shopify.webhooks.addHandlers({
       ORDERS_CREATE: [
@@ -174,7 +176,7 @@ export default async function handler(req, res) {
       session,
     });
     
-    console.log('Webhook registration result:', JSON.stringify(registerResponse, null, 2));
+    logger.debug('Webhook registration result:', JSON.stringify(registerResponse, null, 2));
 
     await sessionHandler.storeSession(session);
 
@@ -187,12 +189,12 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`);
+    logger.info(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`, { category: 'api-auth-callback' });
     const host = req.query.host;
     res.redirect(`/?shop=${shop}&host=${host}`);
 
   } catch (e) {
-    console.error("Error during auth callback", e);
+    logger.error("Error during auth callback", e, { category: 'api-auth-callback' });
 
     // Detect missing OAuth cookie error and restart OAuth
     if (

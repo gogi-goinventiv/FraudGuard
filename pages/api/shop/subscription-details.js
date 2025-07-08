@@ -2,6 +2,7 @@ import sessionHandler from "../utils/sessionHandler";
 import { getCurrentSubscriptions, cancelSubscription } from '../../../lib/billingMiddleware';
 import { shopify } from '../../../lib/shopify';
 import clientPromise from "../../../lib/mongo";
+const logger = require('../../../utils/logger');
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -14,7 +15,7 @@ export default async function handler(req, res) {
       const subscriptions = await getCurrentSubscriptions(session);
       return res.status(200).json({ subscriptions });
     } catch (error) {
-      console.error('Error fetching subscription details:', error);
+      logger.error('Error fetching subscription details:', error, { category: 'api-shop-subscription-details' });
       return res.status(500).json({ error: 'Failed to fetch subscription details', details: error.message });
     }
   } else if (req.method === 'POST') {
@@ -115,9 +116,10 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to store subscription details' });
       }
 
+      logger.info('Subscription extended successfully', { category: 'api-shop-subscription-details' });
       return res.status(200).json({ success: true, confirmationUrl: confirmationUrl, message: 'Subscription extended. Waiting for merchant approval.' });
     } catch (error) {
-      console.error('Error extending subscription:', error);
+      logger.error('Error extending subscription:', error, { category: 'api-shop-subscription-details' });
       return res.status(500).json({ error: 'Failed to extend subscription', details: error.message });
     }
   } else {

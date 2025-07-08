@@ -2,6 +2,7 @@
 import { cancelSubscription, getCurrentSubscriptions } from '../../../lib/billingMiddleware';
 import { shopify } from '../../../lib/shopify';
 import sessionHandler from '../utils/sessionHandler';
+const logger = require('../../../utils/logger');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Error cancelling subscription:', error);
+    logger.error('Error cancelling subscription:', error, { category: 'api-billing-cancel' });
     res.status(500).json({ error: 'Failed to cancel subscription' });
   }
 }

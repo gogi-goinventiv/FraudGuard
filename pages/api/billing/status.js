@@ -2,6 +2,7 @@
 import { getBillingStatus, getCurrentSubscriptions } from '../../../lib/billingMiddleware';
 import { shopify } from '../../../lib/shopify';
 import sessionHandler from '../utils/sessionHandler';
+const logger = require('../../../utils/logger');
 
 export default async function handler(req, res) {
   try {
@@ -21,6 +22,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'GET') {
+      logger.info('Billing status request started', { category: 'api-billing-status' });
       const billingStatus = await getBillingStatus(session);
       const subscriptions = await getCurrentSubscriptions(session);
       
@@ -29,13 +31,14 @@ export default async function handler(req, res) {
         subscriptions,
         billingRequired: process.env.SHOPIFY_BILLING_REQUIRED === 'true'
       });
+      logger.info('Billing status request successful', { category: 'api-billing-status' });
     } else {
       res.setHeader('Allow', ['GET']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 
   } catch (error) {
-    console.error('Billing status error:', error);
+    logger.error('Billing status error', error, { category: 'api-billing-status' });
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }

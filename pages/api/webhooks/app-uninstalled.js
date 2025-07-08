@@ -1,6 +1,7 @@
 import { shopify } from '../../../lib/shopify';
 import { buffer } from 'micro';
 import withMiddleware from '../utils/middleware/withMiddleware';
+const logger = require('../../../utils/logger');
 
 export const config = {
     api: {
@@ -28,7 +29,7 @@ async function validateShopifyWebhook(req, rawBodyString, res) {
         }
         return isValid;
     } catch (error) {
-        console.error('Shopify webhook validation error:', error.message);
+        logger.error('Shopify webhook validation error:', error.message, { category: 'webhook-app-uninstalled' });
         if (!res.headersSent) {
             res.status(401).json({ error: `Webhook validation failed: ${error.message}` });
         }
@@ -49,7 +50,7 @@ const handler = async (req, res) => {
         const rawBodyBuffer = await buffer(req);
         rawBodyString = rawBodyBuffer.toString('utf8');
     } catch (bufError) {
-        console.error('Failed to buffer request body:', bufError);
+        logger.error('Failed to buffer request body:', bufError, { category: 'webhook-app-uninstalled' });
         return res.status(500).json({ error: 'Failed to read request body' });
     }
 
@@ -59,12 +60,18 @@ const handler = async (req, res) => {
 
     // If the app is uninstalled clear onboarding and session data from the database
     const sessionRemoved = await fetch(`${process.env.HOST}/api/reset-session?shop=${shop}`, { method: 'GET' });
-    if(!sessionRemoved.ok) return res.status(500).json({ error: 'Failed to clear session data' });
+    if(!sessionRemoved.ok) {
+        logger.error('Failed to clear session data', { category: 'webhook-app-uninstalled' });
+        return res.status(500).json({ error: 'Failed to clear session data' });
+    }
 
     const onboardingRemoved = await fetch(`${process.env.HOST}/api/reset-onboarding?shop=${shop}`, { method: 'GET' });
-    if(!onboardingRemoved.ok) return res.status(500).json({ error: 'Failed to clear onboarding data' });
+    if(!onboardingRemoved.ok) {
+        logger.error('Failed to clear onboarding data', { category: 'webhook-app-uninstalled' });
+        return res.status(500).json({ error: 'Failed to clear onboarding data' });
+    }
 
-    console.log(`App successfully uninstalled from ${shop} with idempotency key ${idempotencyKey}`);
+    logger.info(`App successfully uninstalled from ${shop} with idempotency key ${idempotencyKey}`, { category: 'webhook-app-uninstalled' });
     return res.status(200).json({ status: 'success' });
 }
 
