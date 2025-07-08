@@ -1,5 +1,4 @@
 import clientPromise from '../../../lib/mongo';
-const logger = require('../../../utils/logger');
 
 export default async function handler(req, res) {
   const client = await clientPromise;
@@ -22,7 +21,7 @@ export default async function handler(req, res) {
       await collection.insertOne(log);
       return res.status(200).json({ success: true });
     } catch (error) {
-      logger.error('Error logging history:', error, { category: 'api-shop-history' });
+      console.error('Error logging history:', error);
       return res.status(500).json({ error: 'Failed to log history' });
     }
   } else if (req.method === 'GET') {
@@ -34,7 +33,7 @@ export default async function handler(req, res) {
       const logs = await collection.find({ shop }).sort({ timestamp: -1 }).limit(50).toArray();
       return res.status(200).json({ logs });
     } catch (error) {
-      logger.error('Error fetching history:', error, { category: 'api-shop-history' });
+      console.error('Error fetching history:', error);
       return res.status(500).json({ error: 'Failed to fetch history' });
     }
   } else {

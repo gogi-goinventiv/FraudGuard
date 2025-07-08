@@ -1,6 +1,5 @@
 import sessionHandler from "../utils/sessionHandler";
 import { shopify } from "../../../lib/shopify";
-const logger = require('../../../utils/logger');
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') {

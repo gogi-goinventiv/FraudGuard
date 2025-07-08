@@ -3,7 +3,6 @@ import clientPromise from '../../lib/mongo';
 import { processQueuedWebhook } from './webhooks/order-create';
 import { processQueuedCancelWebhook } from './webhooks/order-cancel';
 import { processQueuedSubscriptionWebhook } from './webhooks/app-subscription-update';
-const logger = require('../../utils/logger');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -75,7 +74,7 @@ export default async function handler(req, res) {
           });
         }
       } catch (error) {
-        logger.error(`Failed to process queue item ${item._id}:`, error.message, { category: 'api-process-queue' });
+        console.error(`Failed to process queue item ${item._id}:`, error.message);
         results.push({ 
           orderId: item.orderData?.id || item.orderCancelData?.id || 'unknown', 
           type: item.type || 'order_create',
@@ -101,11 +100,9 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shop }),
-        }).catch(err => logger.warn('Failed to trigger next batch:', err.message, { category: 'api-process-queue' }));
+        }).catch(err => console.warn('Failed to trigger next batch:', err.message));
       }, 1000);
     }
-
-    logger.info(`Queue processing completed. Total items: ${queueItems.length}, Successful: ${successCount}, Failed: ${queueItems.length - successCount}, Has more: ${hasMoreItems > 0}`, { category: 'api-process-queue' });
 
     return res.status(200).json({
       success: true,
@@ -117,7 +114,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    logger.error('Queue processing error:', error, { category: 'api-process-queue' });
+    console.error('Queue processing error:', error);
     return res.status(500).json({ 
       error: 'Queue processing failed', 
       message: error.message 

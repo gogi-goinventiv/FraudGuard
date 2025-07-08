@@ -5,7 +5,6 @@ import clientPromise from '../../lib/mongo';
 import { incrementRiskPreventedAmount, updateOrdersOnHold } from "./utils/updateRiskStats";
 import { shopify } from "../../lib/shopify";
 import { removeStatusTags } from "./utils/removeStatusTags";
-const logger = require('../../utils/logger');
 
 export default async function handler(req, res) {
 
@@ -20,8 +19,6 @@ export default async function handler(req, res) {
   try {
     const session = await sessionHandler.loadSession(shop);
 
-    logger.info({ category: 'api-cancel', message: 'Request received for order cancellation', orderId, shop });
-
     // Step 1: Get transactions for the order
     const txRes = await fetch(
       `https://${session.shop}/admin/api/2025-04/orders/${orderId}/transactions.json`,
@@ -34,7 +31,7 @@ export default async function handler(req, res) {
     );
     const txData = await txRes.json();
 
-    logger.debug({ category: 'api-cancel', message: 'Raw transaction data', txData });
+    console.log('txData:', txData);
 
     // Find the authorization transaction that needs to be voided
     const authorizationTx = txData.transactions.find(
@@ -42,7 +39,6 @@ export default async function handler(req, res) {
     );
 
     if (!authorizationTx) {
-      logger.error({ category: 'api-cancel', message: 'No successful authorization transaction found', orderId, shop });
       return res.status(400).json({ error: 'No successful authorization transaction found' });
     }
 
@@ -52,7 +48,6 @@ export default async function handler(req, res) {
     );
 
     if (capturedTx) {
-      logger.error({ category: 'api-cancel', message: 'Payment has already been captured. Use refund instead of cancel.', orderId, shop, captureId: capturedTx.id });
       return res.status(400).json({
         error: 'Payment has already been captured. Use refund instead of cancel.',
         captureId: capturedTx.id
@@ -80,7 +75,6 @@ export default async function handler(req, res) {
     const voidData = await voidRes.json();
 
     if (!voidRes.ok) {
-      logger.error({ category: 'api-cancel', message: 'Void failed', orderId, shop, status: voidRes.status, errors: voidData.errors });
       return res.status(voidRes.status).json({ error: voidData.errors || 'Void failed' });
     }
 
@@ -102,9 +96,8 @@ export default async function handler(req, res) {
     const cancelOrderData = await cancelOrderRes.json();
 
     if (!cancelOrderRes.ok) {
-      logger.error({ category: 'api-cancel', message: 'Order cancellation failed', orderId, shop, status: cancelOrderRes.status, errors: cancelOrderData.errors });
       const errorMessage = cancelOrderData.errors || 'Order cancellation failed';
-      return res.status(voidRes.status).json({ error: errorMessage });
+      return res.status(captureRes.status).json({ error: errorMessage });
     }
 
     const storeName = shop.split('.')[0];
@@ -136,7 +129,6 @@ export default async function handler(req, res) {
     );
 
     if (result.modifiedCount === 0) {
-      logger.error({ category: 'api-cancel', message: 'Failed to update order inside database', orderId, shop });
       return res.status(404).json({ message: 'Failed to update order inside database.' });
     }
 
@@ -149,14 +141,13 @@ export default async function handler(req, res) {
     await incrementRiskPreventedAmount(shop, parseFloat(orderAmount));
     await updateOrdersOnHold(shop, true, {location: "/cancel"});
 
-    logger.info({ category: 'api-cancel', message: 'Order cancellation successful', orderId, shop });
     res.status(200).json({
       success: true,
       transaction: voidData.transaction,
       orderCancelled: cancelOrderRes.ok
     });
   } catch (err) {
-    logger.error({ category: 'api-cancel', message: 'Cancel payment error', orderId, shop, error: err.message });
+    console.error('Cancel payment error:', err);
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 }

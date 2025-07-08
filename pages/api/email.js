@@ -3,7 +3,6 @@
 import sendgrid from '@sendgrid/mail';
 import clientPromise from '../../lib/mongo';
 import jwt from 'jsonwebtoken';
-const logger = require('../../utils/logger');
 
 // Set your SendGrid API key
 sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
@@ -20,7 +19,7 @@ export default async function handler(req, res) {
     const { order } = req.body;
     const { id: orderId, order_number: orderNumber, email: customerEmail, shop, customer, guard, receivedAt, line_items: lineItems, total_price: totalPrice } = order;
 
-    logger.info({ category: 'api-email', message: 'Request received for email verification', orderId, orderNumber, customerEmail });
+    console.log(orderId, orderNumber, customerEmail);
 
     // Validate required fields
     if (!orderId || !orderNumber || !customerEmail) {
@@ -39,7 +38,7 @@ export default async function handler(req, res) {
     const token = jwt.sign({ orderId, customerEmail, shop }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
     const url = `${process.env.HOST}/form/${orderId}?token=${encodeURIComponent(token)}`;
-    logger.debug({ category: 'api-email', message: 'Generated URL for email verification', url, orderId, orderNumber, customerEmail });
+    console.log('Generated URL:', url);
 
     const shopNameResponse = await fetch(`${process.env.HOST}/api/shop/shop-name?shop=${shop}`);
     const shopNameData = await shopNameResponse.json();
@@ -244,9 +243,8 @@ export default async function handler(req, res) {
 
     // Send the email
     const delivery = await sendgrid.send(message);
-    logger.debug({ category: 'api-email', message: 'Email sending attempt', orderId, orderNumber, customerEmail, delivery });
+    console.log('Delivery:', delivery);
     if (!delivery) {
-      logger.error({ category: 'api-email', message: 'Failed to send verification email', orderId, orderNumber, customerEmail });
       return res.status(500).json({ error: 'Failed to send verification email' });
     }
 
@@ -263,15 +261,15 @@ export default async function handler(req, res) {
     );
 
     if (result.modifiedCount === 0) {
-      logger.error({ category: 'api-email', message: 'Failed to update email field for order', orderId, orderNumber, customerEmail });
+      console.error('Failed to update email field for order:', orderId);
       return res.status(500).json({ error: 'Failed to update emailSent field for order' });
     }
 
-    logger.info({ category: 'api-email', message: 'Verification email sent', orderId, orderNumber, customerEmail });
+    console.log('Verification email sent to:', customerEmail);
 
     res.status(200).json({ success: true });
   } catch (error) {
-    logger.error({ category: 'api-email', message: 'SendGrid Error', error: error.response.body, orderId, orderNumber, customerEmail });
+    console.error('SendGrid Error:', error.response.body);
     res.status(500).json({ error: error.response.body.errors[0].message? error.response.body.errors[0].message : error.response.body });
   }
 }

@@ -4,7 +4,6 @@ import withMiddleware from '../utils/middleware/withMiddleware';
 import sessionHandler from '../utils/sessionHandler';
 import clientPromise from '../../../lib/mongo';
 import { buffer } from 'micro';
-const logger = require('../../../utils/logger');
 
 export const config = {
   api: {
@@ -32,7 +31,7 @@ async function validateShopifyWebhook(req, rawBodyString, res) {
     }
     return isValid;
   } catch (error) {
-    logger.error('Shopify webhook validation error:', error.message, { category: 'webhook-app-subscription-update' });
+    console.error('Shopify webhook validation error:', error.message);
     if (!res.headersSent) {
       res.status(401).json({ error: `Webhook validation failed: ${error.message}` });
     }
@@ -53,7 +52,7 @@ async function enqueueSubscriptionWebhook(db, webhookData) {
   };
 
   await db.collection('webhook-queue').insertOne(queueItem);
-  logger.info(`Subscription webhook queued for shop: ${webhookData.shop}`, { category: 'webhook-app-subscription-update' });
+  console.log(`Subscription webhook queued for shop: ${webhookData.shop}`);
   return queueItem;
 }
 
@@ -65,31 +64,31 @@ async function triggerQueueProcessor(shop) {
       body: JSON.stringify({ shop }),
     });
   } catch (error) {
-    logger.error(`Failed to trigger queue processor for shop ${shop}:`, error.message, { category: 'webhook-app-subscription-update' });
+    console.error(`Failed to trigger queue processor for shop ${shop}:`, error.message);
   }
 }
 
 async function handleActiveSubscription(subscription) {
   const shopDomain = subscription.app_installation?.shop?.domain;
-  logger.info(`Subscription activated for shop: ${shopDomain}`, { category: 'webhook-app-subscription-update' });
+  console.log(`Subscription activated for shop: ${shopDomain}`);
   // Add any specific logic for active subscriptions
 }
 
 async function handleCancelledSubscription(subscription) {
   const shopDomain = subscription.app_installation?.shop?.domain;
-  logger.info(`Subscription cancelled for shop: ${shopDomain}`, { category: 'webhook-app-subscription-update' });
+  console.log(`Subscription cancelled for shop: ${shopDomain}`);
   // Add any specific logic for cancelled subscriptions
 }
 
 async function handleExpiredSubscription(subscription) {
   const shopDomain = subscription.app_installation?.shop?.domain;
-  logger.info(`Subscription expired for shop: ${shopDomain}`, { category: 'webhook-app-subscription-update' });
+  console.log(`Subscription expired for shop: ${shopDomain}`);
   // Add any specific logic for expired subscriptions
 }
 
 async function handleFrozenSubscription(subscription) {
   const shopDomain = subscription.app_installation?.shop?.domain;
-  logger.info(`Subscription frozen for shop: ${shopDomain}`, { category: 'webhook-app-subscription-update' });
+  console.log(`Subscription frozen for shop: ${shopDomain}`);
   // Add any specific logic for frozen subscriptions
 }
 
@@ -108,7 +107,7 @@ export async function processQueuedSubscriptionWebhook(db, queueItem) {
       }
     );
 
-    logger.info(`Processing subscription webhook for shop: ${shop}, status: ${subscription.status}`, { category: 'webhook-app-subscription-update' });
+    console.log(`Processing subscription webhook for shop: ${shop}, status: ${subscription.status}`);
 
     switch (subscription.status) {
       case 'ACTIVE':
@@ -135,11 +134,11 @@ export async function processQueuedSubscriptionWebhook(db, queueItem) {
       }
     );
 
-    logger.info(`Successfully processed subscription webhook for shop: ${shop}`, { category: 'webhook-app-subscription-update' });
+    console.log(`Successfully processed subscription webhook for shop: ${shop}`);
     return true;
 
   } catch (error) {
-    logger.error(`Error processing subscription webhook for shop ${shop}:`, error.message, { category: 'webhook-app-subscription-update' });
+    console.error(`Error processing subscription webhook for shop ${shop}:`, error.message);
 
     const shouldRetry = queueItem.attempts < queueItem.maxAttempts;
     const updateData = shouldRetry
@@ -161,7 +160,7 @@ export async function processQueuedSubscriptionWebhook(db, queueItem) {
     );
 
     if (!shouldRetry) {
-      logger.error(`Subscription webhook processing failed permanently for shop ${shop} after ${queueItem.attempts} attempts`, { category: 'webhook-app-subscription-update' });
+      console.error(`Subscription webhook processing failed permanently for shop ${shop} after ${queueItem.attempts} attempts`);
     }
 
     return false;
@@ -181,7 +180,7 @@ const handler = async (req, res) => {
     const rawBodyBuffer = await buffer(req);
     rawBodyString = rawBodyBuffer.toString('utf8');
   } catch (bufError) {
-    logger.error('Failed to buffer request body:', bufError, { category: 'webhook-app-subscription-update' });
+    console.error('Failed to buffer request body:', bufError);
     return res.status(500).json({ error: 'Failed to read request body' });
   }
 
@@ -192,9 +191,9 @@ const handler = async (req, res) => {
   let subscription;
   try {
     subscription = JSON.parse(rawBodyString);
-    logger.info('Subscription webhook payload:', JSON.stringify(subscription, null, 2), { category: 'webhook-app-subscription-update' });
+    console.log('Subscription webhook payload:', JSON.stringify(subscription, null, 2));
   } catch (parseError) {
-    logger.error('Failed to parse webhook JSON body:', parseError, { category: 'webhook-app-subscription-update' });
+    console.error('Failed to parse webhook JSON body:', parseError);
     return res.status(400).json({ error: 'Invalid JSON in webhook body' });
   }
 
@@ -203,12 +202,11 @@ const handler = async (req, res) => {
   const subscriptionStatus = subscription?.app_subscription?.status;
   
   if (!shopDomain || !subscriptionStatus) {
-    logger.error('Invalid webhook data:', { 
+    console.error('Invalid webhook data:', { 
       shop: shopDomain, 
       status: subscriptionStatus,
       subscriptionKeys: Object.keys(subscription || {}),
-      subscription: subscription,
-      category: 'webhook-app-subscription-update'
+      subscription: subscription 
     });
     return res.status(400).json({ error: 'Incomplete or invalid subscription data in webhook.' });
   }
@@ -231,7 +229,7 @@ const handler = async (req, res) => {
     const storeName = shop.split('.')[0];
     db = mongoClient.db(storeName);
   } catch (dbConnectionError) {
-    logger.error(`MongoDB connection error for shop ${shop}:`, dbConnectionError, { category: 'webhook-app-subscription-update' });
+    console.error(`MongoDB connection error for shop ${shop}:`, dbConnectionError);
     return res.status(500).json({ error: 'Database connection failed' });
   }
 
@@ -253,7 +251,7 @@ const handler = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error(`Failed to queue subscription webhook for shop ${shop}:`, error, { category: 'webhook-app-subscription-update' });
+    console.error(`Failed to queue subscription webhook for shop ${shop}:`, error);
     return res.status(500).json({ error: 'Failed to queue subscription webhook for processing' });
   }
 }
