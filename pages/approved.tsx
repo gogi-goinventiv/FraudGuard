@@ -6,7 +6,7 @@ import OrdersTable from '../ui/components/OrdersTable';
 
 const Approved = () => {
     const router = useRouter();
-    const { shop } = router.query;
+    const { shop, host } = router.query;
 
     const [pagination, setPagination] = useState<Pagination>({
         page: 1,
@@ -31,7 +31,7 @@ const Approved = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
-            <Sidebar shop={`${shop}`} />
+            <Sidebar host={String(host)} shop={String(shop)} />
             <main className="flex-1 p-6 space-y-8">
                 <h1 className="text-2xl font-bold">Approved Orders</h1>
                 <div className="mt-4">

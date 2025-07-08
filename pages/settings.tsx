@@ -8,7 +8,7 @@ import { MdClose } from 'react-icons/md';
 const Settings = () => {
 
   const router = useRouter();
-  const { shop, onboarding } = router.query;
+  const { shop, onboarding, host } = router.query;
 
   const [shopName, setShopName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -439,7 +439,7 @@ const Settings = () => {
         )
       }
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar shop={`${shop}`} />
+        <Sidebar host={String(host)} shop={String(shop)} />
         <main className="flex-1 p-6 space-y-8">
           <h1 className="text-2xl font-medium">Settings</h1>
           <SettingsPanel shop={shop as string} />
