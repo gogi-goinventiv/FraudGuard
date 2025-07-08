@@ -243,9 +243,9 @@ export async function processQueuedPaidWebhook(db, queueItem) {
 }
 
 const handler = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // if (req.method !== 'POST') {
+  //   return res.status(405).json({ error: 'Method not allowed' });
+  // }
 
   const shop = req.headers['x-shopify-shop-domain'];
   const idempotencyKey = req.headers['x-shopify-hmac-sha256'] || req.headers['x-shopify-order-id'];
