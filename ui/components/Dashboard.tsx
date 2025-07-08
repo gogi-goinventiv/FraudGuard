@@ -75,7 +75,7 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
 
   useEffect(() => {
     if (onboardingRequired) {
-      router.push(`/settings?shop=${shop}&onboarding=true`);
+      router.push(`/settings?shop=${shop}&host=${host}&onboarding=true`);
     } else {
       setLoadingStates(prev => ({ ...prev, onboardingChecked: true }));
     }
@@ -391,7 +391,7 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
         <main className="flex-1 p-6 space-y-8">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-2xl">Dashboard</h1>
-            <Link href={`/settings?shop=${shop}`}>
+            <Link href={`/settings?shop=${shop}&host=${host}`}>
               <PiGearSixBold className="text-gray-500 cursor-pointer" size={20} />
             </Link>
           </div>
