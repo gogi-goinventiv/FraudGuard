@@ -6,7 +6,7 @@ import { FaGear } from 'react-icons/fa6'
 import { MdCancel, MdPaid } from 'react-icons/md'
 import { TbBasketCancel, TbCancel, TbClockCancel } from "react-icons/tb";
 
-const Sidebar = ({ shop }: { shop: string }) => {
+const Sidebar = ({ shop, host }: { shop: string, host: string }) => {
     const router = useRouter();
     return (
         <aside className="w-64 bg-[#0F2237] text-white flex flex-col">
@@ -17,7 +17,7 @@ const Sidebar = ({ shop }: { shop: string }) => {
                 <div className={`flex items-center px-4 py-1 rounded ${router.pathname === '/dashboard' || router.pathname === '/' ? 'bg-white/10' : ''}`}>
                     <FaCircle size={20} />
                     <Link
-                        href={`/dashboard?shop=${shop}`}
+                        href={`/dashboard?shop=${shop}&host=${host}`}
                         className="block text-white px-4 py-2 rounded"
                     >
                         Dashboard

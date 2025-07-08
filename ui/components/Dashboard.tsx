@@ -367,7 +367,7 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
   if (!isDashboardReady || isLoading.initialData) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar shop={String(shop)} />
+        <Sidebar host={String(host)} shop={String(shop)} />
         <LoadingContent />
       </div>
     );
@@ -385,7 +385,7 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
         )
       }
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar shop={String(shop)} />
+        <Sidebar host={String(host)} shop={String(shop)} />
         <ToastContainer />
 
         <main className="flex-1 p-6 space-y-8">
