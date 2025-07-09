@@ -6,6 +6,8 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
 
+        console.log(process.env.NODE_ENV)
+
         try {
             const session = await sessionHandler.loadSession(shop);
 
