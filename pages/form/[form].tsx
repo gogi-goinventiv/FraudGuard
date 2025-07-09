@@ -163,7 +163,7 @@ const CreditCardCrop = () => {
       } else {
         const newAttempts = ocrAttempts + 1;
         setOcrAttempts(newAttempts);
-        const errorMessage = data.confidence ? `Confidence too low: ${data.confidence}%.` : 'Could not detect digits.';
+        const errorMessage = data.rawText ? `Confidence too low.` : 'Could not detect digits.';
         if (newAttempts >= OCR_MAX_ATTEMPTS) {
           setShowManual(true);
           setOcrError('Please enter the last 4 digits manually.');
