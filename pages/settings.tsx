@@ -53,7 +53,7 @@ const Settings = () => {
 
       setButtonText('Redirecting to settings...');
       setTimeout(() => {
-        router.replace(`/settings?shop=${encodeURIComponent(shop as string)}`);
+        router.replace(`/settings?shop=${encodeURIComponent(shop as string)}&host=${encodeURIComponent(host as string)}`);
       }, 1000);
     } catch (err) {
       console.error('Onboarding error:', err);
@@ -442,7 +442,7 @@ const Settings = () => {
         <Sidebar host={String(host)} shop={String(shop)} />
         <main className="flex-1 p-6 space-y-8">
           <h1 className="text-2xl font-medium">Settings</h1>
-          <SettingsPanel shop={shop as string} />
+          <SettingsPanel shop={shop as string} host={host as string}/>
 
           <div className="border-t border-gray-200" />
 

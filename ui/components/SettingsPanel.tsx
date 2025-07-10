@@ -3,7 +3,7 @@ import { IoIosArrowDown } from 'react-icons/io';
 import { TiWarningOutline } from "react-icons/ti";
 import { useRouter } from 'next/router';
 
-export default function SettingsPanel({ shop }: { shop: string }) {
+export default function SettingsPanel({ shop, host }: { shop: string, host: string }) {
   const [flagRiskLevel, setFlagRiskLevel] = useState("high+medium");
   const [emailRiskLevel, setEmailRiskLevel] = useState("high+medium");
   const [autoCancelHighRisk, setAutoCancelHighRisk] = useState(false);
