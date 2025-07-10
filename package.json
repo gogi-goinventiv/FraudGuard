@@ -16,6 +16,7 @@
     "@shopify/shopify-app-session-storage": "^3.0.17",
     "@shopify/shopify-app-session-storage-memory": "^4.0.17",
     "@shopify/shopify-app-session-storage-mongodb": "^4.0.17",
+    "@vercel/blob": "^1.1.1",
     "@vercel/edge": "^1.2.1",
     "cookies-next": "^4.3.0",
     "currency-codes": "^2.2.0",
