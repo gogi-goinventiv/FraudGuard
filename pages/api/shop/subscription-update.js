@@ -18,7 +18,7 @@ export default async function handler(req, res) {
             const result = await collection.find().sort({ createdAt: -1 }).limit(1).toArray();
             return res.status(200).json(result);
         } catch (error) {
-            logger.error('Error fetching subscription update:', error, { category: 'api-shop-subscription-update' });
+            console.error('Error fetching subscription update:', error, { category: 'api-shop-subscription-update' });
             return res.status(500).json({ message: 'Failed to fetch subscription update' });
         }
     } else if (req.method === 'POST') {
@@ -31,10 +31,10 @@ export default async function handler(req, res) {
         const collection = db.collection('subscription-update');
         try {
             await collection.updateOne({ id }, { $set: { applied: true } });
-            logger.info('Subscription update updated successfully', { category: 'api-shop-subscription-update' });
+            console.info('Subscription update updated successfully', { category: 'api-shop-subscription-update' });
             return res.status(200).json({ success: true });
         } catch (error) {
-            logger.error('Error updating subscription update:', error, { category: 'api-shop-subscription-update' });
+            console.error('Error updating subscription update:', error, { category: 'api-shop-subscription-update' });
             return res.status(500).json({ message: 'Failed to update subscription' });
         }
     } else {

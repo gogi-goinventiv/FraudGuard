@@ -10,7 +10,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing shop' });
     }
     try {
-      logger.info({ category: 'api-shop-lifetime-free', message: 'Request to set lifetime free' });
+      console.info({ category: 'api-shop-lifetime-free', message: 'Request to set lifetime free' });
       // Cancel all active subscriptions for this shop
       const session = await sessionHandler.loadSession(shop);
       if (session) {
@@ -28,10 +28,10 @@ export default async function handler(req, res) {
         { $set: { shop } },
         { upsert: true }
       );
-      logger.info({ category: 'api-shop-lifetime-free', message: 'Lifetime free set successfully' });
+      console.info({ category: 'api-shop-lifetime-free', message: 'Lifetime free set successfully' });
       return res.status(200).json({ success: true });
     } catch (error) {
-      logger.error({ category: 'api-shop-lifetime-free', message: 'Error setting lifetime free', error });
+      console.error({ category: 'api-shop-lifetime-free', message: 'Error setting lifetime free', error });
       return res.status(500).json({ error: 'Failed to set lifetime free' });
     }
   } else if (req.method === 'DELETE') {
@@ -40,14 +40,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing shop' });
     }
     try {
-      logger.info({ category: 'api-shop-lifetime-free', message: 'Request to end lifetime free' });
+      console.info({ category: 'api-shop-lifetime-free', message: 'Request to end lifetime free' });
       const client = await clientPromise;
       const db = client.db('fraudguard');
       await db.collection('lifetimeFreeShops').deleteOne({ shop });
-      logger.info({ category: 'api-shop-lifetime-free', message: 'Lifetime free ended successfully' });
+      console.info({ category: 'api-shop-lifetime-free', message: 'Lifetime free ended successfully' });
       return res.status(200).json({ success: true });
     } catch (error) {
-      logger.error({ category: 'api-shop-lifetime-free', message: 'Error ending lifetime free', error });
+      console.error({ category: 'api-shop-lifetime-free', message: 'Error ending lifetime free', error });
       return res.status(500).json({ error: 'Failed to end lifetime free' });
     }
   } else {

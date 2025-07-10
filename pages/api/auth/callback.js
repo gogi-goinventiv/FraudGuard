@@ -38,7 +38,7 @@ async function checkBillingStatus(session) {
     return subscriptions && subscriptions.length > 0 && 
            subscriptions.some(sub => sub.status === 'ACTIVE');
   } catch (error) {
-    logger.error('Error checking billing status:', error);
+    console.error('Error checking billing status:', error);
     return false;
   }
 }
@@ -89,10 +89,10 @@ async function createBillingSubscription(session, host = '') {
   };
 
   try {
-    logger.debug('Creating subscription with variables:', JSON.stringify(variables, null, 2));
+    console.debug('Creating subscription with variables:', JSON.stringify(variables, null, 2));
     const response = await client.request(mutation, { variables });
 
-    logger.debug('Subscription response:', JSON.stringify(response, null, 2));
+    console.debug('Subscription response:', JSON.stringify(response, null, 2));
 
     if (response.data.appSubscriptionCreate.userErrors.length > 0) {
       throw new Error(
@@ -102,14 +102,14 @@ async function createBillingSubscription(session, host = '') {
 
     return response.data.appSubscriptionCreate.confirmationUrl;
   } catch (error) {
-    logger.error('Error creating subscription:', error);
+    console.error('Error creating subscription:', error);
     throw error;
   }
 }
 
 export default async function handler(req, res) {
   try {
-    logger.info('Auth callback request received', { category: 'api-auth-callback' });
+    console.info('Auth callback request received', { category: 'api-auth-callback' });
     const callback = await shopify.auth.callback({
       rawRequest: req,
       rawResponse: res,
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
     const accessToken = session.accessToken;
     const shop = session.shop;
 
-    logger.debug('Auth callback successful', { category: 'api-auth-callback' });
+    console.debug('Auth callback successful', { category: 'api-auth-callback' });
 
     shopify.webhooks.addHandlers({
       ORDERS_CREATE: [
@@ -176,7 +176,7 @@ export default async function handler(req, res) {
       session,
     });
     
-    logger.debug('Webhook registration result:', JSON.stringify(registerResponse, null, 2));
+    console.debug('Webhook registration result:', JSON.stringify(registerResponse, null, 2));
 
     await sessionHandler.storeSession(session);
 
@@ -189,12 +189,12 @@ export default async function handler(req, res) {
       }
     }
 
-    logger.info(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`, { category: 'api-auth-callback' });
+    console.info(`Redirecting to https://${shop}/admin/apps/${process.env.NEXT_PUBLIC_APP_NAME || 'your-app'}`, { category: 'api-auth-callback' });
     const host = req.query.host;
     res.redirect(`/?shop=${shop}&host=${host}`);
 
   } catch (e) {
-    logger.error("Error during auth callback", e, { category: 'api-auth-callback' });
+    console.error("Error during auth callback", e, { category: 'api-auth-callback' });
 
     // Detect missing OAuth cookie error and restart OAuth
     if (

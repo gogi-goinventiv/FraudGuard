@@ -13,10 +13,10 @@ export default async function handler(req, res) {
     const client = await clientPromise;
     const db = client.db('fraudguard');
     const found = await db.collection('lifetimeFreeShops').findOne({ shop });
-    logger.info('Lifetime free check request completed', { category: 'api-shop-is-lifetime-free' });
+    console.info('Lifetime free check request completed', { category: 'api-shop-is-lifetime-free' });
     return res.status(200).json({ lifetimeFree: !!found });
   } catch (error) {
-    logger.error('Failed to check lifetime free', { error, category: 'api-shop-is-lifetime-free' });
+    console.error('Failed to check lifetime free', { error, category: 'api-shop-is-lifetime-free' });
     return res.status(500).json({ error: 'Failed to check lifetime free' });
   }
 } 
