@@ -147,7 +147,7 @@ export default function SettingsPanel({ shop, host }: { shop: string, host: stri
     const data = await response.json();
     if (!data.result?.manualCaptureEnabled) setManualCaptureStatus(false);
     setManualCaptureStatus(data.result?.manualCaptureEnabled);
-    router.replace('/settings?shop=' + shop);
+    router.replace('/settings?shop=' + shop + '&host=' + host);
   }
 
   useEffect(() => {

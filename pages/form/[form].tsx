@@ -444,11 +444,10 @@ const CreditCardCrop = () => {
             {showManual && (
               <div className="mt-6 w-full flex flex-col items-center animate-fadeInUp">
                 <input
-                  type="tel"
+                  type="text"
                   maxLength={4}
-                  pattern="\d{4}"
                   value={manualEntry}
-                  onChange={(e) => setManualEntry(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => setManualEntry(e.target.value)}
                   className="border-2 border-gray-300 rounded-lg w-32 px-4 py-2 text-center text-xl font-mono mb-2 focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none"
                   placeholder="1234"
                 />
