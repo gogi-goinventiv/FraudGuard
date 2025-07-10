@@ -4,7 +4,7 @@ import withMiddleware from '../utils/middleware/withMiddleware';
 import sessionHandler from '../utils/sessionHandler';
 import clientPromise from '../../../lib/mongo';
 import { buffer } from 'micro';
-const logger = require('../../../utils/logger');
+
 
 export const config = {
   api: {

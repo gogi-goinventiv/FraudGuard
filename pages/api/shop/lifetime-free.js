@@ -1,7 +1,7 @@
 import clientPromise from '../../../lib/mongo';
 import sessionHandler from '../utils/sessionHandler';
 import { getCurrentSubscriptions, cancelSubscription } from '../../../lib/billingMiddleware';
-const logger = require('../../../utils/logger');
+
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {

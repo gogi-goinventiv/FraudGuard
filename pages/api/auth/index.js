@@ -1,6 +1,6 @@
 // pages/api/auth/index.js
 import { shopify } from '../../../lib/shopify';
-const logger = require('../../../utils/logger');
+
 
 export default async function handler(req, res) {
   console.info('Request received for auth index', { category: 'api-auth-index' });

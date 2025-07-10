@@ -2,7 +2,7 @@
 import { DeliveryMethod } from '@shopify/shopify-api';
 import { shopify } from '../../../lib/shopify';
 import sessionHandler from '../utils/sessionHandler';
-const logger = require('../../../utils/logger');
+
 
 const BILLING_SETTINGS = {
   chargeName: process.env.SHOPIFY_BILLING_PLAN_NAME || 'Premium Plan',

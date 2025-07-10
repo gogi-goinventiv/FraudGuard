@@ -2,7 +2,7 @@ import sessionHandler from "../utils/sessionHandler";
 import { getCurrentSubscriptions, cancelSubscription } from '../../../lib/billingMiddleware';
 import { shopify } from '../../../lib/shopify';
 import clientPromise from "../../../lib/mongo";
-const logger = require('../../../utils/logger');
+
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {

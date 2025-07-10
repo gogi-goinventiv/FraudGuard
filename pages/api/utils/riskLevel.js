@@ -3,7 +3,7 @@
 import { CARD_ATTEMPTS, FAILED_PAYMENT_ATTEMPTS, SCORE_THRESHOLD_HIGH_RISK, SCORE_THRESHOLD_MEDIUM_RISK } from "../../../config/constants";
 import clientPromise from "../../../lib/mongo";
 // import currencyCodes from "currency-codes";
-const logger = require('../../../utils/logger');
+
 
 function hasMultipleFailedPaymentAttempts(transactionsData) {
     let failCount = 0;

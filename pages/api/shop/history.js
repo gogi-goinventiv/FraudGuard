@@ -1,5 +1,5 @@
 import clientPromise from '../../../lib/mongo';
-const logger = require('../../../utils/logger');
+
 
 export default async function handler(req, res) {
   const client = await clientPromise;
