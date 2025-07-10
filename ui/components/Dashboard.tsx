@@ -24,7 +24,7 @@ export default function Dashboard({ onboardingRequired }: { onboardingRequired: 
   // Create App Bridge app instance
   const app = createApp({
     apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
-    host: host as string,
+    host: host as string || 'YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvdXZzemgxLW01',
     forceRedirect: true,
   });
   const [orders, setOrders] = useState<any[]>([]);

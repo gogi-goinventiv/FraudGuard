@@ -1,7 +1,6 @@
 import { shopify } from '../../../lib/shopify';
 import { buffer } from 'micro';
 import withMiddleware from '../utils/middleware/withMiddleware';
-const logger = require('../../../utils/logger');
 
 export const config = {
     api: {
@@ -29,7 +28,7 @@ async function validateShopifyWebhook(req, rawBodyString, res) {
         }
         return isValid;
     } catch (error) {
-        logger.error('Shopify webhook validation error:', error.message, { category: 'webhook-shop-redact' });
+        console.error('Shopify webhook validation error:', error.message, { category: 'webhook-shop-redact' });
         if (!res.headersSent) {
             res.status(401).json({ error: `Webhook validation failed: ${error.message}` });
         }
@@ -50,7 +49,7 @@ const handler = async (req, res) => {
         const rawBodyBuffer = await buffer(req);
         rawBodyString = rawBodyBuffer.toString('utf8');
     } catch (bufError) {
-        logger.error('Failed to buffer request body:', bufError, { category: 'webhook-shop-redact' });
+        console.error('Failed to buffer request body:', bufError, { category: 'webhook-shop-redact' });
         return res.status(500).json({ error: 'Failed to read request body' });
     }
 
@@ -58,7 +57,7 @@ const handler = async (req, res) => {
         return;
     }
 
-    logger.info(`Received webhook for ${shop} with idempotency key ${idempotencyKey}`, { category: 'webhook-shop-redact' });
+    console.info(`Received webhook for ${shop} with idempotency key ${idempotencyKey}`, { category: 'webhook-shop-redact' });
 
     return res.status(200).json({ status: 'success' });
 }
