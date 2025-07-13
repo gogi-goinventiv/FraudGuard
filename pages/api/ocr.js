@@ -40,9 +40,9 @@ export default async function handler(req, res) {
     formData.append('OCREngine', '2');
     formData.append('scale', 'true');
     formData.append('isTable', 'false');
-    formData.append('apikey', 'K89833890188957'); // Free demo key
+    formData.append('apikey', process.env.OCR_API_KEY);
 
-    const ocrRes = await fetch('https://api.ocr.space/parse/image', {
+    const ocrRes = await fetch('https://apipro1.ocr.space/parse/image', {
       method: 'POST',
       body: formData,
       headers: formData.getHeaders(),
