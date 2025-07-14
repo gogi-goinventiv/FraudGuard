@@ -38,7 +38,14 @@ export default async function handler(req, res) {
 
     const token = jwt.sign({ orderId, customerEmail, shop }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-    const url = `${process.env.HOST}/form/${orderId}?token=${encodeURIComponent(token)}`;
+    let url = '';
+
+    if (guard.tier === 1) {
+      url = `${process.env.HOST}/form/tier-1/${orderId}?token=${encodeURIComponent(token)}`;
+    } else {
+      url = `${process.env.HOST}/form/${orderId}?token=${encodeURIComponent(token)}`;
+    }
+
     console.debug({ category: 'api-email', message: 'Generated URL for email verification', url, orderId, orderNumber, customerEmail });
 
     const shopNameResponse = await fetch(`${process.env.HOST}/api/shop/shop-name?shop=${shop}`);
@@ -272,7 +279,7 @@ export default async function handler(req, res) {
     res.status(200).json({ success: true });
   } catch (error) {
     console.error({ category: 'api-email', message: 'SendGrid Error', error: error.response.body, orderId, orderNumber, customerEmail });
-    res.status(500).json({ error: error.response.body.errors[0].message? error.response.body.errors[0].message : error.response.body });
+    res.status(500).json({ error: error.response.body.errors[0].message ? error.response.body.errors[0].message : error.response.body });
   }
 }
 

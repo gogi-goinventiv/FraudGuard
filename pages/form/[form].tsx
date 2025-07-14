@@ -104,6 +104,7 @@ const CreditCardCrop = () => {
   const [formDisabled, setFormDisabled] = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState(null);
   const [fullImageFile, setFullImageFile] = useState(null);
+  const [consentChecked, setConsentChecked] = useState(false); // <-- Add consent state
 
   useEffect(() => {
     // Fetch country list from REST Countries API
@@ -224,7 +225,7 @@ const CreditCardCrop = () => {
   };
 
   const handleManualSubmit = () => {
-    if (manualEntry.match(/^\d{4}$/)) {
+    if (manualEntry) {
       setOcrResult({ last4: manualEntry, confidence: 100 });
       setShowManual(false);
       setOcrError(null);
@@ -365,8 +366,28 @@ const CreditCardCrop = () => {
 
             <input ref={inputFileRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
 
+            {/* Consent Checkbox */}
             {!image && (
-              <button onClick={() => inputFileRef.current?.click()} className="w-full flex flex-col items-center px-4 py-5 bg-gray-50 rounded-lg shadow-inner tracking-wide border border-dashed border-gray-300 cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition mb-4">
+              <div className="w-full flex items-start mb-4">
+                <input
+                  id="consent-checkbox"
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={e => setConsentChecked(e.target.checked)}
+                  className="mt-1 mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="consent-checkbox" className="text-gray-700 text-sm select-none">
+                  I agree to share an image showing only the last 4 digits of my card for verification purposes. No full card details are requested or stored.
+                </label>
+              </div>
+            )}
+
+            {!image && (
+              <button onClick={() => inputFileRef.current?.click()} 
+                className={`w-full flex flex-col items-center px-4 py-5 bg-gray-50 rounded-lg shadow-inner tracking-wide border border-dashed border-gray-300 transition mb-4 
+                  ${!consentChecked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-blue-50 hover:border-blue-400'}`}
+                disabled={!consentChecked}
+              >
                 <svg className="w-8 h-8 text-blue-500 mb-2" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
                 <span className="text-base font-medium text-blue-700">Select Image</span>
               </button>
