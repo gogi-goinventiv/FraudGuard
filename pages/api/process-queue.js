@@ -3,6 +3,7 @@ import clientPromise from '../../lib/mongo';
 import { processQueuedWebhook } from './webhooks/order-create';
 import { processQueuedCancelWebhook } from './webhooks/order-cancel';
 import { processQueuedSubscriptionWebhook } from './webhooks/app-subscription-update';
+import { processQueuedPaidWebhook } from './webhooks/order-paid';  // Add this import
 
 
 export default async function handler(req, res) {
@@ -61,6 +62,14 @@ export default async function handler(req, res) {
           results.push({ 
             shop: item.shop || 'unknown', 
             type: 'subscription-update',
+            success: result,
+            _id: item._id 
+          });
+        } else if (item.type === 'order_paid') {  // Add this condition
+          result = await processQueuedPaidWebhook(db, item);
+          results.push({ 
+            orderId: item.orderPaidData?.id || 'unknown', 
+            type: 'order_paid',
             success: result,
             _id: item._id 
           });

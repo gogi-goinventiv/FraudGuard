@@ -2,6 +2,8 @@ import { buffer } from 'micro';
 import { shopify } from '../../../lib/shopify';
 import clientPromise from '../../../lib/mongo';
 import withMiddleware from '../utils/middleware/withMiddleware';
+import { removeStatusTags } from '../utils/removeStatusTags';
+import sessionHandler from '../utils/sessionHandler';
 
 export const config = {
   api: {
@@ -105,7 +107,9 @@ async function enqueuePaidWebhook(db, webhookData) {
     status: 'pending',
     createdAt: new Date(),
     attempts: 0,
-    maxAttempts: 3
+    maxAttempts: 3,
+    shop: webhookData.shop,  // Ensure shop is at the top level
+    orderId: webhookData.orderPaidData?.id  // Add orderId for easier reference
   };
 
   try {
@@ -114,10 +118,18 @@ async function enqueuePaidWebhook(db, webhookData) {
     await db.collection('webhook-queue').createIndex({ type: 1, status: 1 }, { background: true });
     
     const result = await db.collection('webhook-queue').insertOne(queueItem);
-    console.info(`Order paid webhook queued for order ${webhookData.orderPaidData.id} with ID: ${result.insertedId}`, { category: 'webhook-orders-paid' });
+    console.info(`Order paid webhook queued for order ${webhookData.orderPaidData?.id} with ID: ${result.insertedId}`, { 
+      category: 'webhook-orders-paid',
+      orderId: webhookData.orderPaidData?.id,
+      shop: webhookData.shop
+    });
     return result.insertedId;
   } catch (error) {
-    console.error('Failed to enqueue order paid webhook:', error, { category: 'webhook-orders-paid' });
+    console.error('Failed to enqueue order paid webhook:', error, { 
+      category: 'webhook-orders-paid',
+      orderId: webhookData.orderPaidData?.id,
+      shop: webhookData.shop
+    });
     throw error;
   }
 }
@@ -156,7 +168,7 @@ export async function processQueuedPaidWebhook(db, queueItem) {
     // Check if order exists in our database
     const existingOrder = await db.collection('orders').findOne(
       { shop: shop, id: orderPaidData.id },
-      { projection: { 'guard.status': 1 } }
+      { projection: { 'guard.status': 1, 'guard.riskStatusTag': 1, 'admin_graphql_api_id': 1 } }
     );
 
     if (!existingOrder) {
@@ -165,8 +177,17 @@ export async function processQueuedPaidWebhook(db, queueItem) {
     }
 
     const previousStatus = existingOrder?.guard?.status || 'unknown';
+    const riskStatusTag = existingOrder?.guard?.riskStatusTag || '';
 
-    if (previousStatus === 'paid') {
+    const tagsToRemove = [riskStatusTag];
+    const session = await sessionHandler.loadSession(shop);
+
+    if (tagsToRemove.length > 0) {
+      await removeStatusTags(new shopify.clients.Graphql({ session }), existingOrder?.admin_graphql_api_id, tagsToRemove);
+      console.info({ category: 'webhook-orders-paid', message: 'Status tags removed for order', tags: tagsToRemove });
+    }
+
+    if (previousStatus === 'captured payment') {
       console.info(`Order ${orderPaidData.id} is already marked as paid, skipping.`, { category: 'webhook-orders-paid' });
       return;
     }
@@ -176,7 +197,7 @@ export async function processQueuedPaidWebhook(db, queueItem) {
       { shop: shop, id: orderPaidData.id },
       {
         $set: {
-          'guard.status': 'paid',
+          'guard.status': 'captured payment',
           'guard.paymentStatus.captured': true,
           'guard.paymentStatus.cancelled': false,
           'guard.remark': `${previousStatus}`,
@@ -243,9 +264,9 @@ export async function processQueuedPaidWebhook(db, queueItem) {
 }
 
 const handler = async (req, res) => {
-  // if (req.method !== 'POST') {
-  //   return res.status(405).json({ error: 'Method not allowed' });
-  // }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   const shop = req.headers['x-shopify-shop-domain'];
   const idempotencyKey = req.headers['x-shopify-hmac-sha256'] || req.headers['x-shopify-order-id'];
@@ -317,4 +338,4 @@ const handler = async (req, res) => {
   }
 }
 
-export default withMiddleware("verifyHmac")(handler); 
+export default withMiddleware("verifyHmac")(handler);

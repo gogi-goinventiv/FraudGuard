@@ -29,3 +29,4 @@ pnpm-debug.log*
 bun.lockb
 
 pages/ocr.jsx
+pages/api/shopify-check.js

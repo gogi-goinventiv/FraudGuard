@@ -8,7 +8,7 @@ import { updateOrdersOnHold } from '../utils/updateRiskStats';
 import { whichOrdersToFlag } from '../utils/whichOrdersToFlag';
 import { whichOrdersToSendEmail } from '../utils/whichOrdersToSendEmail';
 import withMiddleware from '../utils/middleware/withMiddleware';
-import { EMAIL_RESEND_DELAY_IN_DAYS } from '../../../config/constants';
+import { EMAIL_RESEND_DELAY_IN_DAYS, SCORE_THRESHOLD_HIGH_RISK, SCORE_THRESHOLD_MEDIUM_RISK } from '../../../config/constants';
 import { addStatusTags } from '../utils/addStatusTags';
 
 export const config = {
@@ -376,17 +376,17 @@ export async function processQueuedWebhook(db, queueItem) {
 
     if (whichOrdersToFlag(riskLevel, riskSettings)) {
       console.info(`Order ${orderData.id} for shop ${shop} is being flagged. Risk: ${riskLevel.risk}, Score: ${riskLevel.score}.`, { category: 'webhook-order-create' });
-      
+
       // Handle the flagged order first
       await handleFlaggedOrder(db, orderData, shop, riskLevel, riskSettings, shopifyApiRiskData, orderTxnDetails);
-      
+
       // Add status tags after the order is handled and stored
-      const riskTagStatus = riskLevel.risk === 'high' ? 'FG_HighRisk' : riskLevel.risk === 'medium' ? 'FG_MediumRisk' : '';
+      const riskTagStatus = riskLevel.score < SCORE_THRESHOLD_MEDIUM_RISK ? 'FG_LowRisk' : riskLevel.score < SCORE_THRESHOLD_HIGH_RISK ? 'FG_MediumRisk' : 'FG_HighRisk';
       const verificationStatusTag = 'FG_VerificationPending';
-      
+
       // Filter out empty tags
       const tagsToAdd = [riskTagStatus, verificationStatusTag].filter(tag => tag && tag.trim());
-      
+
       if (tagsToAdd.length > 0) {
         try {
           const tagResult = await addStatusTags(shopifyClient, orderData.admin_graphql_api_id, tagsToAdd);

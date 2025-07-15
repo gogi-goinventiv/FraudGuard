@@ -161,14 +161,14 @@ export const getRiskLevel = async (order, shop, accessToken, shopifyRiskAssessme
 
         if (score < SCORE_THRESHOLD_MEDIUM_RISK) {
             if (hasBeenUsedBefore) {
-                reason.push('Past fraudulent behaviour');
+                reason.push('Past fraudulent behaviour.');
                 score = SCORE_THRESHOLD_MEDIUM_RISK;
                 return { score, reason, risk: 'medium' };
             }
             return { score, reason, risk: 'low' };
-        }                                                            // Scores 0-2 are low
+        }                                                                                    // Scores 0-2 are low
         if (score < SCORE_THRESHOLD_HIGH_RISK) return { score, reason, risk: 'medium' };     // Scores 3 are medium
-        return { score, reason, risk: 'high' };                      // Scores 4+ are high
+        return { score, reason, risk: 'high' };                                              // Scores 4+ are high
 
     } catch (error) {
         console.error(error);
