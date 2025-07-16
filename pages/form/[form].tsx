@@ -294,7 +294,7 @@ const CreditCardCrop = () => {
         },
         body: JSON.stringify({
           lastFourDigits: ocrResult.last4,
-          billing_country: selectedCountry,
+          bin_country: selectedCountry,
           cardImageUrl,
         }),
       });

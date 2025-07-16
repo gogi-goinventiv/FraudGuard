@@ -23,11 +23,11 @@ export default async function handler(req, res) {
     }
 
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    const { lastFourDigits, billing_country } = req.body;
+    const { lastFourDigits, bin_country } = req.body;
     const { orderId, customerEmail, shop } = decodedToken;
 
 
-    if (!orderId || !customerEmail || !shop || !lastFourDigits) {
+    if (!orderId || !customerEmail || !shop || !lastFourDigits || !bin_country) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -48,15 +48,26 @@ export default async function handler(req, res) {
     }
 
     const session = await sessionHandler.loadSession(shop);
+    const shopifyClient = new shopify.clients.Graphql({ session });
 
-    const [orderResponse, txnsResponse, riskSettingsResponse] = await Promise.all([
+    // Get order transactions using GraphQL
+    const transactionQuery = `
+      query GetOrderTransactions($id: ID!) {
+        order(id: $id) {
+          transactions {
+            id
+            accountNumber
+            status
+            kind
+            manuallyCapturable
+            paymentDetails
+          }
+        }
+      }
+    `;
+
+    const [orderResponse, riskSettingsResponse] = await Promise.all([
       fetch(`https://${shop}/admin/api/2025-04/orders/${orderId}.json`, {
-        headers: {
-          'X-Shopify-Access-Token': session.accessToken,
-          'Content-Type': 'application/json',
-        },
-      }),
-      fetch(`https://${shop}/admin/api/2025-04/orders/${orderId}/transactions.json`, {
         headers: {
           'X-Shopify-Access-Token': session.accessToken,
           'Content-Type': 'application/json',
@@ -69,33 +80,88 @@ export default async function handler(req, res) {
       const text = await orderResponse.text();
       throw new Error(`Order API error: ${orderResponse.status} - ${text}`);
     }
-    if (!txnsResponse.ok) {
-      const text = await txnsResponse.text();
-      throw new Error(`Transactions API error: ${txnsResponse.status} - ${text}`);
-    }
-    if (!riskSettingsResponse.ok) {
-      const text = await riskSettingsResponse.text();
-      throw new Error(`Risk settings API error: ${riskSettingsResponse.status} - ${text}`);
-    }
 
-    const [{ order: orderData }, txnData, riskSettings] = await Promise.all([
+    const [{ order: orderData }, riskSettings] = await Promise.all([
       orderResponse.json(),
-      txnsResponse.json(),
       riskSettingsResponse.json()
     ]);
 
-    if (!orderData) {
-      return res.status(404).json({ error: 'Order not found' });
+    // Get successful transaction and its payment details
+    const txnResponse = await shopifyClient.request(transactionQuery, {
+      variables: { id: `gid://shopify/Order/${orderId}` }
+    });
+
+    const successfulTxn = txnResponse.data.order.transactions.find(txn =>
+      txn.status === 'SUCCESS' && txn.kind === 'AUTHORIZATION'
+    );
+
+    if (!successfulTxn) {
+      return res.status(404).json({ error: 'No successful transaction found' });
     }
 
-    // Validate last four digits and country
-    const billingCountry = orderData.billing_address?.country;
-    const successfulTxn = txnData.transactions.find(txn => txn.status === 'success');
-    const creditCardLastFour = successfulTxn?.payment_details?.credit_card_number?.slice(-4);
+    // Get payment details for the successful transaction
+    const paymentQuery = `
+      query OrderCardPaymentDetails($id: ID!) {
+        order(id: $id) {
+          transactions(first: 10) {
+            id
+            paymentDetails {
+              __typename
+              ... on CardPaymentDetails {
+                bin
+                number
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const paymentResponse = await shopifyClient.request(paymentQuery, {
+      variables: { id: `gid://shopify/Order/${orderId}` }
+    });
+
+    const txnDetails = paymentResponse.data.order.transactions.find(t =>
+      t.id === successfulTxn.id
+    );
+
+    if (!txnDetails?.paymentDetails?.bin) {
+      return res.status(404).json({ error: 'Payment details not found' });
+    }
+
+    // Get card BIN country and validate
+    const binCountry = await getIssuingCountryFromBin(txnDetails.paymentDetails.bin);
+    const creditCardLastFour = txnDetails.paymentDetails.number.replace(/[^0-9]/g, '').slice(-4);
 
     const validLastFour = creditCardLastFour === lastFourDigits;
-    const validCountry = billingCountry && billingCountry === billing_country;
-    const isValid = validLastFour && validCountry;
+    const validCountry = binCountry && bin_country.toLowerCase() === binCountry.toLowerCase();
+    
+    // Modified validation logic
+    let isValid = false;
+    let verificationRemark = '';
+
+    if (validLastFour) {
+      if (!binCountry) {
+        // If BIN lookup failed but last 4 match, consider it valid
+        isValid = true;
+        verificationRemark = 'Verified (Last 4 only - BIN lookup failed)';
+      } else if (validCountry) {
+        // Both last 4 and country match
+        isValid = true;
+        verificationRemark = 'Verified (Full verification)';
+      } else {
+        // Last 4 match but country doesn't
+        isValid = false;
+        verificationRemark = 'Country mismatch';
+      }
+    } else {
+      // Last 4 don't match
+      isValid = false;
+      verificationRemark = 'Invalid last four digits';
+    }
+
+    // Returns error messages based on which validation failed
+    let errorMessage = !validLastFour ? 'Invalid last four digits' : 'Invalid country';
 
     const currentAttempts = (existingOrder?.guard?.attempts || 0) + 1;
 
@@ -110,15 +176,14 @@ export default async function handler(req, res) {
         });
       }
       await incrementVerificationAttempts(db, shop, orderId, currentAttempts);
-      let errorMessage = !validLastFour ? 'Invalid last four digits' : 'Invalid country';
       return res.status(422).json({
         error: errorMessage,
         message: `You have ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} left`
       });
     }
 
-    // Mark as verified
-    const result = await updateOrderVerificationStatus(db, shop, orderId, 'verified', session);
+    // Mark as verified (updated to include remark)
+    const result = await updateOrderVerificationStatus(db, shop, orderId, 'verified', session, verificationRemark);
     if (riskSettings.autoApproveVerified) {
       handleAutoCapture(shop, orderId, orderData?.total_price);
     }
@@ -140,7 +205,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function updateOrderVerificationStatus(db, shop, orderId, status, session) {
+async function updateOrderVerificationStatus(db, shop, orderId, status, session, remark) {
 
   const shopifyClient = new shopify.clients.Graphql({ session });
 
@@ -172,7 +237,7 @@ async function updateOrderVerificationStatus(db, shop, orderId, status, session)
       $set: {
         'guard.isVerificationRequired': false,
         'guard.status': status,
-        'guard.remark': status,
+        'guard.remark': remark,
         'guard.verificationStatusTag': status === 'verified' ? 'FG_Verified' : 'FG_Unverified'
       }
     }
@@ -196,7 +261,7 @@ async function incrementVerificationAttempts(db, shop, orderId, attempts) {
 }
 
 async function handleFailedVerification(db, shop, orderId, orderData, autoCancelUnverified, attempts, session) {
-  
+
   const shopifyClient = new shopify.clients.Graphql({ session });
 
   const existingOrder = await db.collection('orders').findOne(
@@ -214,7 +279,7 @@ async function handleFailedVerification(db, shop, orderId, orderData, autoCancel
   if (tagsToAdd.length > 0) {
     await addStatusTags(shopifyClient, existingOrder?.admin_graphql_api_id, tagsToAdd);
   }
-  
+
   await db.collection('orders').updateOne(
     {
       shop: shop,
@@ -271,4 +336,53 @@ async function handleAutoCapture(shop, orderId, orderAmount) {
   } catch (error) {
     console.log('Auto capture failed:', error);
   }
+}
+
+async function getIssuingCountryFromBin(bin) {
+  const apis = [
+    {
+      url: `https://data.handyapi.com/bin/${bin}`,
+      parser: (data) => data?.Country?.Name || null
+    },
+    {
+      url: `https://lookup.binlist.net/${bin}`,
+      parser: (data) => data?.country?.name || null
+    },
+    {
+      url: `https://api.bincheck.io/bin/${bin}`,
+      parser: (data) => data?.country || null
+    },
+    {
+      url: `https://bins.payout.com/api/v1/bin/${bin}`,
+      parser: (data) => data?.issuer?.country || null
+    }
+  ];
+
+  for (const api of apis) {
+    try {
+      console.info(`Attempting BIN lookup with API: ${api.url}`);
+      const response = await fetch(api.url, {
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        console.warn(`BIN API failed (${api.url}):`, response.status);
+        continue;
+      }
+
+      const data = await response.json();
+      const country = api.parser(data);
+      
+      if (country) {
+        console.info(`Successfully got country from API: ${country}`);
+        return country;
+      }
+    } catch (error) {
+      console.warn(`BIN API error (${api.url}):`, error.message);
+      continue;
+    }
+  }
+  
+  console.warn('All BIN APIs failed to return country');
+  return null;
 }
