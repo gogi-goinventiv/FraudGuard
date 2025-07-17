@@ -4,6 +4,8 @@ import { shopify } from '../../../lib/shopify';
 import clientPromise from '../../../lib/mongo';
 import { incrementRiskPreventedAmount, updateOrdersOnHold } from "../utils/updateRiskStats";
 import withMiddleware from '../utils/middleware/withMiddleware';
+import sessionHandler from '../utils/sessionHandler';
+import { removeStatusTags } from '../utils/removeStatusTags';
 
 export const config = {
   api: {
@@ -160,7 +162,7 @@ export async function processQueuedCancelWebhook(db, queueItem) {
     // Check if order exists in our database
     const existingOrder = await db.collection('orders').findOne(
       { shop: shop, id: orderCancelData.id },
-      { projection: { 'guard.status': 1 } }
+      { projection: { 'guard.status': 1, 'guard.riskStatusTag': 1, 'admin_graphql_api_id': 1 } }
     );
 
     if (!existingOrder) {
@@ -169,6 +171,15 @@ export async function processQueuedCancelWebhook(db, queueItem) {
     }
 
     const previousStatus = existingOrder?.guard?.status || 'unknown';
+    const riskStatusTag = existingOrder?.guard?.riskStatusTag || '';
+
+    const tagsToRemove = [riskStatusTag];
+    const session = await sessionHandler.loadSession(shop);
+
+    if (tagsToRemove.length > 0) {
+      await removeStatusTags(new shopify.clients.Graphql({ session }), existingOrder?.admin_graphql_api_id, tagsToRemove);
+      console.info({ category: 'webhook-orders-paid', message: 'Status tags removed for order', tags: tagsToRemove });
+    }
 
     if (previousStatus === 'cancelled payment') {
       console.info(`Order ${orderCancelData.id} is already cancelled, skipping.`, { category: 'webhook-order-cancel' });

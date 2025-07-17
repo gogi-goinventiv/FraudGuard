@@ -4,6 +4,7 @@ import clientPromise from '../../../lib/mongo';
 import withMiddleware from '../utils/middleware/withMiddleware';
 import { removeStatusTags } from '../utils/removeStatusTags';
 import sessionHandler from '../utils/sessionHandler';
+import { updateOrdersOnHold } from "../utils/updateRiskStats";
 
 export const config = {
   api: {
@@ -218,6 +219,8 @@ export async function processQueuedPaidWebhook(db, queueItem) {
     } else {
       console.warn(`Order ${orderPaidData.id} was not found in database for paid update. This might be expected if the order was never flagged.`, { category: 'webhook-orders-paid' });
     }
+
+    await updateOrdersOnHold(shop, true);
 
     // Mark webhook as completed
     await db.collection('webhook-queue').updateOne(
